@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "seethrough.fullname" . }}-web
+  labels:
+    app: web
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      containers:
+        - name: web
+          image: "{{ .Values.image.web.repository }}:{{ .Values.image.web.tag }}"
+          imagePullPolicy: {{ .Values.image.web.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.service.web.targetPort }}
+              name: http
+          env:
+            - name: API_URL
+              value: {{ .Values.config.api.url | quote }}
+            - name: WS_URL
+              value: {{ .Values.config.websocket.url | quote }}
+          resources:
+            {{- toYaml .Values.resources.web | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-service
+spec:
+  type: {{ .Values.service.web.type }}
+  ports:
+    - port: {{ .Values.service.web.port }}
+      targetPort: {{ .Values.service.web.targetPort }}
+      name: http
+  selector:
+    app: web

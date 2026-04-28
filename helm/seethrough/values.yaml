@@ -1,0 +1,73 @@
+# Default values for seethrough.
+# This is a YAML-formatted file.
+
+replicaCount: 1
+
+image:
+  api:
+    repository: seethrough-api
+    tag: latest
+    pullPolicy: IfNotPresent
+  web:
+    repository: seethrough-web
+    tag: latest
+    pullPolicy: IfNotPresent
+  agent:
+    repository: seethrough-agent
+    tag: latest
+    pullPolicy: IfNotPresent
+
+service:
+  api:
+    type: ClusterIP
+    port: 3000
+    websocketPort: 3001
+  web:
+    type: LoadBalancer
+    port: 80
+    targetPort: 80
+
+# Storage configuration
+storage:
+  mode: "postgres,valkey"
+  postgres:
+    enabled: true
+    host: "postgres-service"
+    port: 5432
+    db: "monitoring"
+    user: "root"
+    password: "securepassword"
+  valkey:
+    enabled: true
+    host: "valkey-service"
+    port: 6379
+
+config:
+  api:
+    url: "http://api-service:3000"
+  websocket:
+    url: "ws://api-service:3001"
+  jwtSecret: ""
+
+resources:
+  api:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+  web:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+  agent:
+    limits:
+      cpu: 100m
+      memory: 128Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi

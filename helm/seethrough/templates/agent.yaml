@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ include "seethrough.fullname" . }}-agent
+  labels:
+    app: agent
+spec:
+  selector:
+    matchLabels:
+      app: agent
+  template:
+    metadata:
+      labels:
+        app: agent
+    spec:
+      hostPID: true
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      containers:
+        - name: agent
+          image: "{{ .Values.image.agent.repository }}:{{ .Values.image.agent.tag }}"
+          imagePullPolicy: {{ .Values.image.agent.pullPolicy }}
+          env:
+            - name: API_URL
+              value: {{ .Values.config.api.url | quote }}
+            - name: MACHINE_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: REPORT_INTERVAL
+              value: "5000"
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "seethrough.fullname" . }}-auth
+                  key: jwt-secret
+          resources:
+            {{- toYaml .Values.resources.agent | nindent 12 }}

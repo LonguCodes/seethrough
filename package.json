@@ -1,0 +1,29 @@
+{
+  "name": "project-template",
+  "private": true,
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
+    "check-types": "turbo run check-types",
+    "build:api": "turbo run build --filter=./apps/api",
+    "build:web": "turbo run build --filter=./apps/web",
+    "docker:build": "docker build -t seethrough-api -f apps/api/docker/Dockerfile . && docker build -t seethrough-web -f apps/web/docker/Dockerfile . && docker build -t seethrough-agent -f apps/agent/docker/Dockerfile .",
+    "minikube:build": "minikube image build -t seethrough-api -f apps/api/docker/Dockerfile . && minikube image build -t seethrough-web -f apps/web/docker/Dockerfile . && minikube image build -t seethrough-agent -f apps/agent/docker/Dockerfile .",
+    "minikube:reload": "yarn minikube:build && kubectl rollout restart deployment/seethrough-api deployment/seethrough-web daemonset/seethrough-agent"
+  },
+  "devDependencies": {
+    "prettier": "^3.6.2",
+    "turbo": "^2.5.8",
+    "typescript": "5.9.2"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "packageManager": "yarn@1.22.22",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ]
+}
