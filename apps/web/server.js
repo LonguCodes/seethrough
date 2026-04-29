@@ -18,9 +18,11 @@ app.prepare().then(() => {
   const server = createServer((req, res) => {
     // 1. Handle standard Socket.io HTTP polling/handshake
     if (req.url.startsWith('/socket.io/')) {
-      console.log('Socket.io request');
-      console.log(req, res);
-      proxy.web(req, res);
+      proxy.web(req, res, { target: process.env.WS_URL });
+    } else if (req.url.startsWith('/api/proxy/')) {
+      // Use API_URL from environment and strip the /api/proxy/ prefix
+      req.url = req.url.replace('/api/proxy/', '/api/');
+      proxy.web(req, res, { target: process.env.API_URL });
     } else {
       handle(req, res);
     }

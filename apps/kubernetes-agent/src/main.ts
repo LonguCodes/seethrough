@@ -12,7 +12,7 @@ async function bootstrap() {
   
   console.log('=================================');
   console.log(`======= ENV: ${process.env.NODE_ENV} ========`);
-  console.log(`🚀 Agent standalone mode started`);
+  console.log(`🚀 Kubernetes Agent started`);
   console.log('=================================');
   return app;
 }

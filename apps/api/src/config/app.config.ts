@@ -13,6 +13,7 @@ export interface AppConfig {
         port: number;
     },
     jwtSecret: string;
+    logLevel: string;
 }
 export const ConfigSchema = Joi.object({
     DATABASE__HOST: Joi.string().required(),
@@ -23,4 +24,5 @@ export const ConfigSchema = Joi.object({
     REDIS__HOST: Joi.string().default('localhost'),
     REDIS__PORT: Joi.number().default(6379),
     JWT_SECRET: Joi.string().required(),
+    LOG_LEVEL: Joi.string().default('log'),
 })

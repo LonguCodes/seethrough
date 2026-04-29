@@ -1,0 +1,62 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kubernetes-agent
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kubernetes-agent-role
+rules:
+  - apiGroups: [""]
+    resources: ["nodes", "pods", "namespaces", "pods/log"]
+    verbs: ["list", "get", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kubernetes-agent-binding
+subjects:
+  - kind: ServiceAccount
+    name: kubernetes-agent
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: ClusterRole
+  name: kubernetes-agent-role
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubernetes-agent
+  labels:
+    app: kubernetes-agent
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kubernetes-agent
+  template:
+    metadata:
+      labels:
+        app: kubernetes-agent
+    spec:
+      serviceAccountName: kubernetes-agent
+      containers:
+        - name: kubernetes-agent
+          image: "{{ .Values.image.kubernetesAgent.repository }}:{{ .Values.image.kubernetesAgent.tag }}"
+          imagePullPolicy: {{ .Values.image.kubernetesAgent.pullPolicy }}
+          env:
+            - name: API_URL
+              value: {{ .Values.config.api.url | quote }}
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "seethrough.fullname" . }}-auth
+                  key: jwt-secret
+            - name: REPORT_INTERVAL
+              value: {{ .Values.config.reportInterval.kubernetesAgent | quote }}
+            - name: LOG_LEVEL
+              value: {{ .Values.config.logLevel | quote }}
+          resources:
+            {{- toYaml .Values.resources.kubernetesAgent | nindent 12 }}

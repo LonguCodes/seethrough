@@ -41,6 +41,8 @@ spec:
                 secretKeyRef:
                   name: {{ include "seethrough.fullname" . }}-auth
                   key: jwt-secret
+            - name: LOG_LEVEL
+              value: {{ .Values.config.logLevel | quote }}
           resources:
             {{- toYaml .Values.resources.api | nindent 12 }}
 ---

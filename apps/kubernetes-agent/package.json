@@ -1,0 +1,41 @@
+{
+  "name": "kubernetes-agent",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "@kubernetes/client-node": "^1.0.0",
+    "@longucodes/config": "^1.1.17",
+    "@nestjs/axios": "^4.0.1",
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/core": "^11.1.6",
+    "@nestjs/jwt": "^11.0.2",
+    "@nestjs/passport": "^11.0.5",
+    "@nestjs/platform-express": "^11.1.6",
+    "@nestjs/swagger": "^11.2.0",
+    "@swc/core": "^1.15.3",
+    "axios": "^1.15.2",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.2",
+    "joi": "^18.0.1",
+    "passport": "^0.7.0",
+    "passport-jwt": "^4.0.1",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "socket.io": "^4.8.3",
+    "socket.io-client": "^4.8.3"
+  },
+  "devDependencies": {
+    "@esbuild-plugins/tsconfig-paths": "^0.1.2",
+    "esbuild": "^0.25.10",
+    "esbuild-decorators": "^1.0.0",
+    "esbuild-fix-imports-plugin": "^1.0.22",
+    "typescript": "^5.9.3",
+    "vite": "^7.1.9",
+    "vite-plugin-node": "^7.0.0"
+  }
+}

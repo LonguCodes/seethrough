@@ -1,8 +1,9 @@
 import {DynamicModule, Module} from "@nestjs/common";
 import {TypeOrmModule} from "@nestjs/typeorm";
 import {ConfigModule, ConfigToken} from "@longucodes/config";
-import {AppConfig, ConfigSchema} from "./config/app.config";
-import {MetricsModule} from "./metrics/metrics.module";
+import {AppConfig, ConfigSchema} from "./config/app.config.js";
+import {MetricsModule} from "./metrics/metrics.module.js";
+import {ClusterModule} from "./cluster/cluster.module.js";
 
 @Module({
     imports: [
@@ -20,7 +21,8 @@ import {MetricsModule} from "./metrics/metrics.module";
                 synchronize: true // Assuming dev environment, would use migrations in prod
             })
         }),
-        MetricsModule
+        MetricsModule,
+        ClusterModule
     ]
 })
 export class AppModule {}

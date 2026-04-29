@@ -1,16 +1,23 @@
 import { NestFactory } from "@nestjs/core";
-import { BadRequestException, ValidationPipe } from "@nestjs/common";
-import { setupSwagger } from "./swagger";
-import { AppModule } from "./app.module";
+import { ValidationPipe } from "@nestjs/common";
+import { setupSwagger } from "./swagger.js";
+import { AppModule } from "./app.module.js";
 
 async function bootstrap() {
+  const logLevel = (process.env.LOG_LEVEL || 'log') as any;
   const app = await NestFactory.create(AppModule, {
     rawBody: true,
+    logger: [logLevel, 'error', 'warn', 'debug', 'verbose'].filter(l => {
+      const levels = ['error', 'warn', 'log', 'verbose', 'debug'];
+      return levels.indexOf(l) <= levels.indexOf(logLevel);
+    }) as any,
   });
   app.enableCors({
     origin: '*',
     credentials: true,
   });
+
+  app.setGlobalPrefix('api');
 
   app.useGlobalPipes(
     new ValidationPipe({
@@ -24,21 +31,18 @@ async function bootstrap() {
       },
     }),
   );
-  // Set up the Proxmox shell proxy service
-  const server = app.getHttpServer();
 
   setupSwagger(app);
 
-  await app.listen(3000, () => {
-    console.log('=================================');
-    console.log(`🚀 Api listening on the port 3000`);
-    console.log('=================================');
-  });
+  // @ts-ignore
+  if (import.meta.env.PROD) {
+    await app.listen(3000, () => {
+      console.log('=================================');
+      console.log(`🚀 Api listening on the port 3000`);
+      console.log('=================================');
+    });
+  }
+  return app;
 }
 
-// @ts-ignore
-if (import.meta.env.PROD) {
-  bootstrap();
-}
-
-export const viteNodeApp = NestFactory.create(AppModule);
+export const viteNodeApp = bootstrap();

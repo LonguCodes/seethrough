@@ -16,6 +16,10 @@ image:
     repository: seethrough-agent
     tag: latest
     pullPolicy: IfNotPresent
+  kubernetesAgent:
+    repository: seethrough-kubernetes-agent
+    tag: latest
+    pullPolicy: IfNotPresent
 
 service:
   api:
@@ -51,10 +55,14 @@ storage:
 
 config:
   api:
-    url: "http://api:3000"
+    url: "http://api:3000/api"
   websocket:
     url: "ws://api:3001"
   jwtSecret: ""
+  logLevel: "log"
+  reportInterval:
+    agent: 5000
+    kubernetesAgent: 5000
 
 resources:
   api:
@@ -78,3 +86,10 @@ resources:
     requests:
       cpu: 50m
       memory: 64Mi
+  kubernetesAgent:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi

@@ -18,9 +18,9 @@ export class MetricsCollectorService implements OnModuleInit {
   ) { }
 
   onModuleInit() {
-    this.logger.log('Metrics Collector Service started');
-    // Collect and report metrics every 10 seconds
-    interval(1000).subscribe(() => this.collectAndReport());
+    this.logger.log(`Metrics Collector Service started with interval: ${this.config.reportInterval}ms`);
+    // Collect and report metrics
+    interval(this.config.reportInterval).subscribe(() => this.collectAndReport());
   }
 
   private async collectAndReport() {
@@ -57,7 +57,7 @@ export class MetricsCollectorService implements OnModuleInit {
       role: 'agent',
     });
 
-    const url = `${this.config.apiUrl}/metrics`;
+    const url = `${this.config.apiUrl}/api/metrics`;
 
     await firstValueFrom(
       this.httpService.post(url, metrics, {
