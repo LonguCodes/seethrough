@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "seethrough.fullname" . }}-web
+  name: web
   labels:
     app: web
 spec:
@@ -32,7 +32,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: web-service
+  name: web
 spec:
   type: {{ .Values.service.web.type }}
   ports:

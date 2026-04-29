@@ -1,9 +1,10 @@
 {{- if .Values.storage.postgres.enabled -}}
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: postgres
 spec:
+  serviceName: {{ .Values.storage.postgres.host }}
   replicas: 1
   selector:
     matchLabels:
@@ -23,8 +24,24 @@ spec:
               value: {{ .Values.storage.postgres.password | quote }}
             - name: POSTGRES_DB
               value: {{ .Values.storage.postgres.db | quote }}
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
           ports:
             - containerPort: 5432
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+    - metadata:
+        name: postgres-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- if .Values.storage.postgres.persistence.storageClass }}
+        storageClassName: {{ .Values.storage.postgres.persistence.storageClass | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.storage.postgres.persistence.size | quote }}
 ---
 apiVersion: v1
 kind: Service
@@ -36,35 +53,50 @@ spec:
   selector:
     app: postgres
 {{ end }}
-{{ if .Values.storage.valkey.enabled }}
+{{ if .Values.storage.redis.enabled }}
 ---
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
-  name: valkey
+  name: redis
 spec:
+  serviceName: {{ .Values.storage.redis.host }}
   replicas: 1
   selector:
     matchLabels:
-      app: valkey
+      app: redis
   template:
     metadata:
       labels:
-        app: valkey
+        app: redis
     spec:
       containers:
-        - name: valkey
-          image: valkey/valkey:8
+        - name: redis
+          image: redis:7-alpine
           ports:
             - containerPort: 6379
+          volumeMounts:
+            - name: redis-data
+              mountPath: /data
+  volumeClaimTemplates:
+    - metadata:
+        name: redis-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- if .Values.storage.redis.persistence.storageClass }}
+        storageClassName: {{ .Values.storage.redis.persistence.storageClass | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.storage.redis.persistence.size | quote }}
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ .Values.storage.valkey.host }}
+  name: {{ .Values.storage.redis.host }}
 spec:
   ports:
     - port: 6379
   selector:
-    app: valkey
+    app: redis
 {{- end }}

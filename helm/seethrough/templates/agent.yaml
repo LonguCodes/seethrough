@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
-  name: {{ include "seethrough.fullname" . }}-agent
+  name: agent
   labels:
     app: agent
 spec:

@@ -29,24 +29,31 @@ service:
 
 # Storage configuration
 storage:
-  mode: "postgres,valkey"
   postgres:
     enabled: true
-    host: "postgres-service"
+    host: "postgres"
     port: 5432
     db: "monitoring"
     user: "root"
     password: "securepassword"
-  valkey:
+    persistence:
+      enabled: true
+      size: 5Gi
+      storageClass: ""
+  redis:
     enabled: true
-    host: "valkey-service"
+    host: "redis"
     port: 6379
+    persistence:
+      enabled: true
+      size: 2Gi
+      storageClass: ""
 
 config:
   api:
-    url: "http://api-service:3000"
+    url: "http://api:3000"
   websocket:
-    url: "ws://api-service:3001"
+    url: "ws://api:3001"
   jwtSecret: ""
 
 resources:

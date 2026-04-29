@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "seethrough.fullname" . }}-api
+  name: api
   labels:
     app: api
 spec:
@@ -32,12 +32,10 @@ spec:
               value: {{ .Values.storage.postgres.user | quote }}
             - name: DATABASE__PASSWORD
               value: {{ .Values.storage.postgres.password | quote }}
-            - name: STORAGE_MODE
-              value: {{ .Values.storage.mode | quote }}
-            - name: VALKEY__HOST
-              value: {{ .Values.storage.valkey.host | quote }}
-            - name: VALKEY__PORT
-              value: {{ .Values.storage.valkey.port | quote }}
+            - name: REDIS__HOST
+              value: {{ .Values.storage.redis.host | quote }}
+            - name: REDIS__PORT
+              value: {{ .Values.storage.redis.port | quote }}
             - name: JWT_SECRET
               valueFrom:
                 secretKeyRef:
@@ -49,7 +47,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: api-service
+  name: api
 spec:
   type: {{ .Values.service.api.type }}
   ports:
