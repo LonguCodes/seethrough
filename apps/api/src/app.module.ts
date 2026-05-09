@@ -1,9 +1,10 @@
-import {DynamicModule, Module} from "@nestjs/common";
-import {TypeOrmModule} from "@nestjs/typeorm";
-import {ConfigModule, ConfigToken} from "@longucodes/config";
-import {AppConfig, ConfigSchema} from "./config/app.config.js";
-import {MetricsModule} from "./metrics/metrics.module.js";
-import {ClusterModule} from "./cluster/cluster.module.js";
+import { DynamicModule, Module } from "@nestjs/common";
+import { TypeOrmModule } from "@nestjs/typeorm";
+import { ConfigModule, ConfigToken } from "@longucodes/config";
+import { AppConfig, ConfigSchema } from "./config/app.config.js";
+import { MetricsModule } from "./metrics/metrics.module.js";
+import { ClusterModule } from "./cluster/cluster.module.js";
+import { AlertsModule } from "./alerts/alerts.module.js";
 
 @Module({
     imports: [
@@ -15,14 +16,15 @@ import {ClusterModule} from "./cluster/cluster.module.js";
         TypeOrmModule.forRootAsync({
             inject: [ConfigToken],
             useFactory: (config: AppConfig) => ({
-                ...config.database, 
+                ...config.database,
                 type: 'postgres',
                 autoLoadEntities: true,
                 synchronize: true // Assuming dev environment, would use migrations in prod
             })
         }),
         MetricsModule,
-        ClusterModule
+        ClusterModule,
+        AlertsModule
     ]
 })
-export class AppModule {}
+export class AppModule { }

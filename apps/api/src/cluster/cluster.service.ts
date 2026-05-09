@@ -24,6 +24,9 @@ export class ClusterService {
     if (data.namespaces) {
       pipeline.set('cluster:namespaces', JSON.stringify(data.namespaces), 'EX', 300);
     }
+    if (data.pvcs) {
+      pipeline.set('cluster:pvcs', JSON.stringify(data.pvcs), 'EX', 300);
+    }
 
     // Store each pod individually with 5 minute TTL
     if (data.pods && Array.isArray(data.pods)) {
@@ -38,9 +41,10 @@ export class ClusterService {
   }
 
   async getClusterInfo() {
-    const [nodesJson, namespacesJson, keys] = await Promise.all([
+    const [nodesJson, namespacesJson, pvcsJson, keys] = await Promise.all([
       this.redis.get('cluster:nodes'),
       this.redis.get('cluster:namespaces'),
+      this.redis.get('cluster:pvcs'),
       this.redis.keys('cluster:pod:*')
     ]);
 
@@ -55,6 +59,7 @@ export class ClusterService {
     return {
       nodes: nodesJson ? JSON.parse(nodesJson) : [],
       namespaces: namespacesJson ? JSON.parse(namespacesJson) : [],
+      pvcs: pvcsJson ? JSON.parse(pvcsJson) : [],
       pods: pods,
       timestamp: new Date().toISOString()
     };

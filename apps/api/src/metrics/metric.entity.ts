@@ -4,5 +4,6 @@ export class MachineMetric {
   cpuUsage: number;
   ramUsage: number;
   diskUsage: number;
+  pvcUsage: any[];
   timestamp: Date;
 }

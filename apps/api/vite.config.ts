@@ -16,6 +16,7 @@ export default defineConfig({
             exportName: 'viteNodeApp',
             tsCompiler: 'swc',
             outputFormat: 'esm',
+            initAppOnBoot: true,
             swcOptions: {
                 minify: false
             }

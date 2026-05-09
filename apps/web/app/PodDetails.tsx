@@ -2,6 +2,7 @@
 
 import { X, Info, AlertTriangle, Terminal, Clock, Globe, Cpu, Tag } from 'lucide-react';
 import LogViewer from './LogViewer';
+import AlertsList from './components/AlertsList';
 
 interface Pod {
   name: string;
@@ -76,9 +77,10 @@ export default function PodDetails({ pod, onClose }: PodDetailsProps) {
                 <AlertTriangle size={16} className="text-[var(--warning)]" />
                 Recent Alerts
               </h3>
-              <div className="flex-1 flex flex-col items-center justify-center gap-4 text-slate-600 py-12 border-2 border-dashed border-white/5 rounded-2xl">
-                <AlertTriangle size={32} className="opacity-20" />
-                <p className="text-sm">No recent alerts for this pod</p>
+              <div className="flex-1 flex flex-col overflow-hidden min-h-[200px]">
+                <div className="h-full overflow-y-auto custom-scrollbar pr-2">
+                  <AlertsList apiUrl="/api/proxy" target={pod.name} compact={true} />
+                </div>
               </div>
             </div>
 

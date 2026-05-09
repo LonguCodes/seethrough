@@ -1,13 +1,14 @@
 import { NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module.js";
+import { LogLevel } from "@nestjs/common";
 
 async function bootstrap() {
-  const logLevel = (process.env.LOG_LEVEL || 'log') as any;
+  const allLevels: LogLevel[] = ['fatal', 'error', 'warn', 'log', 'debug', 'verbose'];
+  const logLevel = process.env.LOG_LEVEL || 'log';
+  const logLevelIndex = allLevels.indexOf(logLevel as LogLevel);
+  
   const app = await NestFactory.createApplicationContext(AppModule, {
-    logger: [logLevel, 'error', 'warn', 'debug', 'verbose'].filter(l => {
-      const levels = ['error', 'warn', 'log', 'verbose', 'debug'];
-      return levels.indexOf(l) <= levels.indexOf(logLevel);
-    }) as any,
+    logger: allLevels.slice(0, logLevelIndex !== -1 ? logLevelIndex + 1 : 4),
   });
   
   console.log('=================================');

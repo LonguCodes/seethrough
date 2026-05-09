@@ -20,6 +20,7 @@
   --card-bg: rgba(255, 255, 255, 0.05);
   --card-border: rgba(255, 255, 255, 0.1);
   --accent: #6366f1;
+  --accent-rgb: 99, 102, 241;
   --accent-glow: rgba(99, 102, 241, 0.2);
   --success: #10b981;
   --warning: #f59e0b;

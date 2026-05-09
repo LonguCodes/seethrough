@@ -24,10 +24,11 @@ export class KubernetesService {
 
   async getClusterInfo() {
     try {
-      const [nodes, pods, namespaces] = await Promise.all([
+      const [nodes, pods, namespaces, pvcs] = await Promise.all([
         this.k8sApi.listNode(),
         this.k8sApi.listPodForAllNamespaces(),
         this.k8sApi.listNamespace(),
+        this.k8sApi.listPersistentVolumeClaimForAllNamespaces(),
       ]);
 
       return {
@@ -51,6 +52,15 @@ export class KubernetesService {
         namespaces: namespaces.items.map(ns => ({
           name: ns.metadata.name,
           status: ns.status.phase,
+        })),
+        pvcs: pvcs.items.map(pvc => ({
+          name: pvc.metadata.name,
+          namespace: pvc.metadata.namespace,
+          status: pvc.status.phase,
+          volumeName: pvc.spec.volumeName,
+          storageClass: pvc.spec.storageClassName,
+          capacity: pvc.status.capacity?.storage,
+          accessModes: pvc.spec.accessModes,
         })),
         timestamp: new Date().toISOString(),
       };

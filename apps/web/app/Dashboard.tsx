@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { io } from 'socket.io-client';
 import Link from 'next/link';
-import { Activity, Cpu, Database, HardDrive, LayoutDashboard, Server, History, Box, Layers, Globe } from 'lucide-react';
+import { Activity, Cpu, Database, HardDrive, LayoutDashboard, Server, History, Box, Layers, Globe, AlertTriangle, Settings } from 'lucide-react';
+import AlertsList from './components/AlertsList';
 
 interface Metric {
 // ... existing interfaces
@@ -97,15 +98,6 @@ export default function Dashboard({ apiUrl }: DashboardProps) {
     };
   }, [apiUrl]);
 
-  const podsByNamespace = useMemo(() => {
-    if (!clusterInfo?.pods) return {};
-    return clusterInfo.pods.reduce((acc, pod) => {
-      if (!acc[pod.namespace]) acc[pod.namespace] = [];
-      acc[pod.namespace]?.push(pod);
-      return acc;
-    }, {} as Record<string, Pod[]>);
-  }, [clusterInfo]);
-
   const getProgressColor = (value: number) => {
     if (value > 80) return 'var(--danger)';
     if (value > 60) return 'var(--warning)';
@@ -132,6 +124,14 @@ export default function Dashboard({ apiUrl }: DashboardProps) {
           )}
         </div>
       </header>
+
+      <section className="mb-16">
+        <div className="flex items-center gap-3 mb-8">
+          <AlertTriangle size={24} className="text-[var(--warning)]" />
+          <h2 className="text-2xl font-semibold">Active Alerts</h2>
+        </div>
+        <AlertsList apiUrl={apiUrl} />
+      </section>
 
       <section className="mb-16">
         <div className="flex items-center gap-3 mb-8">
@@ -189,47 +189,6 @@ export default function Dashboard({ apiUrl }: DashboardProps) {
         )}
       </section>
 
-      {clusterInfo && (
-        <section className="mb-16">
-          <div className="flex items-center gap-3 mb-8">
-            <Layers size={24} className="text-[var(--accent)]" />
-            <h2 className="text-2xl font-semibold">Cluster View</h2>
-          </div>
-          <div className="grid grid-cols-1 gap-8">
-            {Object.entries(podsByNamespace).map(([namespace, pods]) => (
-              <div key={namespace} className="glass p-8 rounded-3xl">
-                <h3 className="text-lg font-medium mb-6 flex items-center gap-2 text-slate-300">
-                  <Globe size={18} className="text-[var(--accent)]" />
-                  Namespace: <span className="text-[var(--accent)]">{namespace}</span>
-                  <span className="ml-auto text-xs py-1 px-3 rounded-full bg-white/10 text-slate-400 font-normal">
-                    {pods.length} Pods
-                  </span>
-                </h3>
-                <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4">
-                  {pods.map((pod) => (
-                    <Link 
-                      key={pod.name} 
-                      href={`/pod/${pod.namespace}/${pod.name}`}
-                      className="bg-white/5 border border-white/5 p-4 rounded-2xl flex flex-col gap-2 hover:border-[var(--accent)]/30 hover:bg-white/[0.08] transition-all cursor-pointer group"
-                    >
-                      <div className="flex justify-between items-start gap-2">
-                        <div className="font-medium text-sm text-slate-200 truncate group-hover:text-[var(--accent)] transition-colors" title={pod.name}>
-                          {pod.name}
-                        </div>
-                        <StatusBadge status={pod.status} />
-                      </div>
-                      <div className="text-[10px] text-slate-500 flex items-center gap-1 group-hover:text-slate-400 transition-colors">
-                        <Server size={10} />
-                        Node: {pod.nodeName || 'Pending'}
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
 
       <footer className="mt-16 text-center text-slate-500 text-sm">
         &copy; {new Date().getFullYear()} Monitoring System &bull; Built with Next.js & Tailwind

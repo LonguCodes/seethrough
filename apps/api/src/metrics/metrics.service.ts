@@ -13,12 +13,14 @@ export class MetricsService {
     cpuUsage: number,
     ramUsage: number,
     diskUsage: number,
+    pvcUsage: any[] = [],
   ): Promise<MachineMetric> {
     return this.storage.save({
       machineId,
       cpuUsage,
       ramUsage,
       diskUsage,
+      pvcUsage,
       timestamp: new Date(),
     });
   }

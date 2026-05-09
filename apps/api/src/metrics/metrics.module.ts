@@ -45,6 +45,7 @@ import { RedisStorageStrategy } from './strategies/redis-storage.strategy.js';
     }
   ],
   controllers: [MetricsController],
+  exports: [MetricsService],
 })
 export class MetricsModule {}
 

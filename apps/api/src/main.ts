@@ -1,16 +1,16 @@
 import { NestFactory } from "@nestjs/core";
-import { ValidationPipe } from "@nestjs/common";
+import { LogLevel, ValidationPipe } from "@nestjs/common";
 import { setupSwagger } from "./swagger.js";
 import { AppModule } from "./app.module.js";
 
 async function bootstrap() {
-  const logLevel = (process.env.LOG_LEVEL || 'log') as any;
+  const allLevels: LogLevel[] = ['fatal', 'error', 'warn', 'log', 'debug', 'verbose'];
+  const logLevel = process.env.LOG_LEVEL || 'log';
+  const logLevelIndex = allLevels.indexOf(logLevel as LogLevel);
+
   const app = await NestFactory.create(AppModule, {
     rawBody: true,
-    logger: [logLevel, 'error', 'warn', 'debug', 'verbose'].filter(l => {
-      const levels = ['error', 'warn', 'log', 'verbose', 'debug'];
-      return levels.indexOf(l) <= levels.indexOf(logLevel);
-    }) as any,
+    logger: allLevels.slice(0, logLevelIndex !== -1 ? logLevelIndex + 1 : 4),
   });
   app.enableCors({
     origin: '*',

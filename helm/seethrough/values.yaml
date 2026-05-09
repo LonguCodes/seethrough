@@ -55,7 +55,7 @@ storage:
 
 config:
   api:
-    url: "http://api:3000/api"
+    url: "http://api:3000"
   websocket:
     url: "ws://api:3001"
   jwtSecret: ""
