@@ -36,6 +36,8 @@ interface DashboardProps {
   apiUrl: string;
 }
 
+import api from '../lib/api';
+
 export default function Dashboard({ apiUrl }: DashboardProps) {
   const [metrics, setMetrics] = useState<Metric[]>([]);
   const [clusterInfo, setClusterInfo] = useState<ClusterInfo | null>(null);
@@ -43,9 +45,7 @@ export default function Dashboard({ apiUrl }: DashboardProps) {
 
   const fetchMetrics = async () => {
     try {
-      const response = await fetch(`${apiUrl}/metrics/latest`);
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-      const data = await response.json();
+      const data: any = await api.get('metrics/latest').json();
 
       if (Array.isArray(data)) {
         setMetrics(data);
@@ -60,9 +60,7 @@ export default function Dashboard({ apiUrl }: DashboardProps) {
 
   const fetchClusterInfo = async () => {
     try {
-      const response = await fetch(`${apiUrl}/cluster-info`);
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-      const data = await response.json();
+      const data: any = await api.get('cluster-info').json();
       setClusterInfo(data);
     } catch (error) {
       console.error('Failed to fetch cluster info:', error);

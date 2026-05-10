@@ -1,9 +1,9 @@
-import { Controller, Post, Body, Get, UseGuards, Request, Param } from '@nestjs/common';
+import { Controller, Post, Body, Get, Param, Request } from '@nestjs/common';
 import { MetricsService } from './metrics.service.js';
-import { AuthGuard } from '@nestjs/passport';
 import { MetricsGateway } from './metrics.gateway.js';
 import { IsNumber, IsOptional, IsArray, ValidateNested, IsString } from 'class-validator';
 import { Type } from 'class-transformer';
+import { Request as ExpressRequest } from 'express';
 
 class PvcUsageDto {
   @IsString()
@@ -40,9 +40,8 @@ export class MetricsController {
     private readonly metricsGateway: MetricsGateway,
   ) { }
 
-  @UseGuards(AuthGuard('jwt'))
   @Post()
-  async createMetric(@Body() dto: CreateMetricDto, @Request() req) {
+  async createMetric(@Body() dto: CreateMetricDto, @Request() req: ExpressRequest & { user: any }) {
     if (dto.pvcUsage && dto.pvcUsage.length > 0) {
       console.log(`Received ${dto.pvcUsage.length} PVC usage entries from ${req.user.machineId}`);
     }
@@ -73,4 +72,3 @@ export class MetricsController {
     return this.metricsService.getMachineHistory(machineId);
   }
 }
-

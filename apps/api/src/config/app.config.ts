@@ -14,6 +14,10 @@ export interface AppConfig {
     },
     jwtSecret: string;
     logLevel: string;
+    defaultAdmin: {
+        username: string;
+        password: string;
+    }
 }
 export const ConfigSchema = Joi.object({
     DATABASE__HOST: Joi.string().required(),
@@ -23,6 +27,8 @@ export const ConfigSchema = Joi.object({
     DATABASE__PASSWORD: Joi.string().optional(),
     REDIS__HOST: Joi.string().default('localhost'),
     REDIS__PORT: Joi.number().default(6379),
-    JWT_SECRET: Joi.string().required(),
+    JWT_SECRET: Joi.string().default('development-secret-key-change-me'),
     LOG_LEVEL: Joi.string().default('log'),
+    DEFAULT_ADMIN__PASSWORD: Joi.string().default('admin'),
+    DEFAULT_ADMIN__USERNAME: Joi.string().default('admin'),
 })

@@ -54,20 +54,19 @@ function parseKubernetesQuantity(quantity: string | undefined): number {
   return factor ? value * factor : value;
 }
 
+import api from '../../lib/api';
+
 export default function VolumesPage() {
-  const apiUrl = '/api/proxy';
   const [pvcs, setPvcs] = useState<PvcMetadata[]>([]);
   const [metrics, setMetrics] = useState<Metric[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchData = async () => {
     try {
-      const [clusterRes, metricsRes] = await Promise.all([
-        fetch(`${apiUrl}/cluster-info`),
-        fetch(`${apiUrl}/metrics/latest`)
+      const [clusterData, metricsData]: any = await Promise.all([
+        api.get('cluster-info').json(),
+        api.get('metrics/latest').json()
       ]);
-      const clusterData = await clusterRes.json();
-      const metricsData = await metricsRes.json();
 
       setPvcs(clusterData.pvcs || []);
       setMetrics(metricsData || []);

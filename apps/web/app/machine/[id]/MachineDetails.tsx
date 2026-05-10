@@ -34,6 +34,8 @@ interface MachineDetailsProps {
   apiUrl: string;
 }
 
+import api from '../../../lib/api';
+
 export default function MachineDetails({ id, apiUrl }: MachineDetailsProps) {
   const [history, setHistory] = useState<Metric[]>([]);
   const [loading, setLoading] = useState(true);
@@ -41,9 +43,7 @@ export default function MachineDetails({ id, apiUrl }: MachineDetailsProps) {
 
   const fetchHistory = async () => {
     try {
-      const response = await fetch(`${apiUrl}/metrics/${id}/history`);
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-      const data = await response.json();
+      const data: any = await api.get(`metrics/${id}/history`).json();
 
       if (Array.isArray(data)) {
         setHistory(data.reverse());

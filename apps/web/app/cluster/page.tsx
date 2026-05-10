@@ -21,15 +21,15 @@ interface ClusterInfo {
   timestamp: string;
 }
 
+import api from '../../lib/api';
+
 export default function ClusterPage() {
-  const apiUrl = '/api/proxy';
   const [clusterInfo, setClusterInfo] = useState<ClusterInfo | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchClusterInfo = async () => {
     try {
-      const response = await fetch(`${apiUrl}/cluster-info`);
-      const data = await response.json();
+      const data: any = await api.get('cluster-info').json();
       setClusterInfo(data);
     } catch (error) {
       console.error('Failed to fetch cluster info:', error);

@@ -5,6 +5,9 @@ import { AppConfig, ConfigSchema } from "./config/app.config.js";
 import { MetricsModule } from "./metrics/metrics.module.js";
 import { ClusterModule } from "./cluster/cluster.module.js";
 import { AlertsModule } from "./alerts/alerts.module.js";
+import { AuthModule } from "./auth/auth.module.js";
+import { APP_GUARD } from "@nestjs/core";
+import { JwtAuthGuard } from "./auth/guards/jwt-auth.guard.js";
 
 @Module({
     imports: [
@@ -24,7 +27,14 @@ import { AlertsModule } from "./alerts/alerts.module.js";
         }),
         MetricsModule,
         ClusterModule,
-        AlertsModule
-    ]
+        AlertsModule,
+        AuthModule,
+    ],
+    providers: [
+        {
+            provide: APP_GUARD,
+            useClass: JwtAuthGuard,
+        },
+    ],
 })
 export class AppModule { }

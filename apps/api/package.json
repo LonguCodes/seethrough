@@ -19,6 +19,7 @@
     "@nestjs/typeorm": "^11.0.0",
     "@nestjs/websockets": "^11.1.19",
     "@swc/core": "^1.15.3",
+    "bcrypt": "^6.0.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
     "ioredis": "^5.10.1",
@@ -33,6 +34,7 @@
   },
   "devDependencies": {
     "@esbuild-plugins/tsconfig-paths": "^0.1.2",
+    "@types/bcrypt": "^6.0.0",
     "esbuild": "^0.25.10",
     "esbuild-decorators": "^1.0.0",
     "esbuild-fix-imports-plugin": "^1.0.22",

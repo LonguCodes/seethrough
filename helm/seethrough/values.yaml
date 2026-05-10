@@ -63,6 +63,8 @@ config:
   reportInterval:
     agent: 5000
     kubernetesAgent: 5000
+  defaultAdmin:
+    username: "admin"
 
 resources:
   api:

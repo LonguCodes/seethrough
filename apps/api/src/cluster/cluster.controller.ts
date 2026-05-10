@@ -1,6 +1,5 @@
-import { Controller, Post, Body, Get, UseGuards, Param } from '@nestjs/common';
+import { Controller, Post, Body, Get, Param } from '@nestjs/common';
 import { ClusterService } from './cluster.service.js';
-import { AuthGuard } from '@nestjs/passport';
 
 @Controller('cluster-info')
 export class ClusterController {
@@ -8,7 +7,6 @@ export class ClusterController {
     private readonly clusterService: ClusterService,
   ) { }
 
-  @UseGuards(AuthGuard('jwt'))
   @Post()
   async updateClusterInfo(@Body() data: any) {
     return this.clusterService.saveClusterInfo(data);

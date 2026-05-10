@@ -4,6 +4,7 @@ import { useEffect, useState, use } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import PodDetails from '../../../PodDetails';
+import api from '../../../../lib/api';
 
 interface Pod {
   name: string;
@@ -21,9 +22,8 @@ export default function PodPage({ params }: { params: Promise<{ namespace: strin
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`/api/proxy/cluster-info/pods/${namespace}/${name}`)
-      .then(res => res.json())
-      .then(data => {
+    api.get(`cluster-info/pods/${namespace}/${name}`).json()
+      .then((data: any) => {
         setPod(data);
         setLoading(false);
       })

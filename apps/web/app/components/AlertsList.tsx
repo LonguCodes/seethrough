@@ -19,28 +19,27 @@ interface AlertsListProps {
   compact?: boolean;
 }
 
+import api from '../../lib/api';
+
 export default function AlertsList({ apiUrl, target, compact = false }: AlertsListProps) {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchAlerts = useCallback(async () => {
     try {
-      const url = new URL(`${window.location.origin}${apiUrl}/alerts`);
-      url.searchParams.append('status', 'active');
-      if (target) {
-        url.searchParams.append('target', target);
-      }
-      
-      const response = await fetch(url.toString());
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-      const data = await response.json();
+      const data: any = await api.get('alerts', {
+        searchParams: {
+          status: 'active',
+          ...(target ? { target } : {}),
+        },
+      }).json();
       setAlerts(data);
     } catch (error) {
       console.error('Failed to fetch alerts:', error);
     } finally {
       setLoading(false);
     }
-  }, [apiUrl, target]);
+  }, [target]);
 
   useEffect(() => {
     fetchAlerts();
@@ -50,12 +49,8 @@ export default function AlertsList({ apiUrl, target, compact = false }: AlertsLi
 
   const resolveAlert = async (id: string) => {
     try {
-      const response = await fetch(`${apiUrl}/alerts/${id}/resolve`, {
-        method: 'POST',
-      });
-      if (response.ok) {
-        setAlerts((prev) => prev.filter((a) => a.id !== id));
-      }
+      await api.post(`alerts/${id}/resolve`);
+      setAlerts((prev) => prev.filter((a) => a.id !== id));
     } catch (error) {
       console.error('Failed to resolve alert:', error);
     }

@@ -13,6 +13,7 @@ const MENU_ITEMS = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  if (pathname === '/login') return null;
 
   return (
     <aside className="fixed left-0 top-0 h-screen w-72 glass border-r border-white/5 flex flex-col z-50">

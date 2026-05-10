@@ -22,5 +22,16 @@ export function setupSwagger(app: INestApplication) {
 
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document, {
+    swaggerOptions: {
+      persistAuthorization: true,
+      apisSorter: 'alpha',
+      tagsSorter: 'alpha',
+      operationsSorter: 'method',
+    },
+    customCssUrl: [`${swaggerCDN}/swagger-ui.css`],
+    customJs: [
+      `${swaggerCDN}/swagger-ui-bundle.js`,
+      `${swaggerCDN}/swagger-ui-standalone-preset.js`
+    ],
   });
 }

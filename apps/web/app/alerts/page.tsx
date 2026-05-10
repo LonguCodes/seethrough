@@ -24,8 +24,9 @@ interface AlertTrigger {
   createdAt: string;
 }
 
+import api from '../../lib/api';
+
 export default function AlertsConfiguration() {
-  const apiUrl = '/api/proxy';
   const [strategies, setStrategies] = useState<Strategy[]>([]);
   const [triggers, setTriggers] = useState<AlertTrigger[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,16 +47,12 @@ export default function AlertsConfiguration() {
 
   const fetchData = async () => {
     try {
-      const [stratsRes, triggersRes, clusterRes, metricsRes] = await Promise.all([
-        fetch(`${apiUrl}/alerts/strategies`),
-        fetch(`${apiUrl}/alerts/triggers`),
-        fetch(`${apiUrl}/cluster-info`),
-        fetch(`${apiUrl}/metrics/latest`)
+      const [stratsData, triggersData, clusterData, metricsData]: any = await Promise.all([
+        api.get('alerts/strategies').json(),
+        api.get('alerts/triggers').json(),
+        api.get('cluster-info').json(),
+        api.get('metrics/latest').json()
       ]);
-      const stratsData = await stratsRes.json();
-      const triggersData = await triggersRes.json();
-      const clusterData = await clusterRes.json();
-      const metricsData = await metricsRes.json();
 
       setStrategies(stratsData);
       setTriggers(triggersData);
@@ -94,26 +91,22 @@ export default function AlertsConfiguration() {
     }
 
     try {
-      const resp = await fetch(`${apiUrl}/alerts/triggers`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      await api.post('alerts/triggers', {
+        json: {
           name,
           type,
           scope,
           scopeValue: scopeValue || null,
           parameters: parsedParams,
           enabled: true,
-        }),
+        },
       });
 
-      if (resp.ok) {
-        setShowForm(false);
-        setName('');
-        setScopeValue('');
-        setType('');
-        fetchData();
-      }
+      setShowForm(false);
+      setName('');
+      setScopeValue('');
+      setType('');
+      fetchData();
     } catch (err) {
       console.error('Failed to create trigger', err);
     }
@@ -121,10 +114,8 @@ export default function AlertsConfiguration() {
 
   const toggleTrigger = async (id: string, currentlyEnabled: boolean) => {
     try {
-      await fetch(`${apiUrl}/alerts/triggers/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ enabled: !currentlyEnabled }),
+      await api.patch(`alerts/triggers/${id}`, {
+        json: { enabled: !currentlyEnabled },
       });
       setTriggers(prev => prev.map(t => t.id === id ? { ...t, enabled: !currentlyEnabled } : t));
     } catch (err) {
@@ -135,9 +126,7 @@ export default function AlertsConfiguration() {
   const deleteTrigger = async (id: string) => {
     if (!confirm('Are you sure you want to delete this alert?')) return;
     try {
-      await fetch(`${apiUrl}/alerts/triggers/${id}`, {
-        method: 'DELETE',
-      });
+      await api.delete(`alerts/triggers/${id}`);
       setTriggers(prev => prev.filter(t => t.id !== id));
     } catch (err) {
       console.error('Failed to delete logger', err);
