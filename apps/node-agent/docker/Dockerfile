@@ -5,7 +5,7 @@ RUN yarn global add turbo
 
 COPY . .
 
-RUN turbo prune --scope=agent --docker
+RUN turbo prune --scope=node-agent --docker
 
 FROM node:22-slim AS installer
 WORKDIR /app
