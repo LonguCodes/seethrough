@@ -2,18 +2,19 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Layers, Settings, Activity, Server, Box, Cpu, HardDrive } from 'lucide-react';
+import { LayoutDashboard, Layers, Settings, Activity, Server, Box, Cpu, HardDrive, Users } from 'lucide-react';
 
 const MENU_ITEMS = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/' },
   { icon: Layers, label: 'Cluster View', href: '/cluster' },
   { icon: HardDrive, label: 'Volumes', href: '/volumes' },
   { icon: Activity, label: 'Alert Rules', href: '/alerts' },
+  { icon: Users, label: 'Users', href: '/users' },
 ];
 
 export default function Sidebar() {
   const pathname = usePathname();
-  if (pathname === '/login') return null;
+  if (pathname === '/login' || pathname.startsWith('/invite/')) return null;
 
   return (
     <aside className="fixed left-0 top-0 h-screen w-72 glass border-r border-white/5 flex flex-col z-50">

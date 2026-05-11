@@ -6,7 +6,7 @@ export function middleware(request: NextRequest) {
   const accessToken = request.cookies.get('access_token');
 
   // Define public routes
-  const isPublicRoute = pathname === '/login';
+  const isPublicRoute = pathname === '/login' || pathname.startsWith('/invite/');
   const isApiRoute = pathname.startsWith('/api/');
 
   // Allow access to public routes and API routes (backend handles its own auth)

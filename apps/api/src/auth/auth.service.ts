@@ -1,11 +1,13 @@
-import { Injectable, UnauthorizedException, Inject, OnModuleInit } from '@nestjs/common';
+import { Injectable, UnauthorizedException, Inject, OnModuleInit, ConflictException, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import bcrypt from 'bcrypt';
+import crypto from 'crypto';
 import { ConfigToken } from '@longucodes/config';
 import { User } from './entities/user.entity.js';
 import { Session } from './entities/session.entity.js';
+import { Invitation } from './entities/invitation.entity.js';
 import { LoginStrategy } from './strategies/login-strategy.interface.js';
 import { LocalLoginStrategy } from './strategies/local-login.strategy.js';
 import type { AppConfig } from '../config/app.config.js';
@@ -20,6 +22,8 @@ export class AuthService implements OnModuleInit {
     private readonly userRepository: Repository<User>,
     @InjectRepository(Session)
     private readonly sessionRepository: Repository<Session>,
+    @InjectRepository(Invitation)
+    private readonly invitationRepository: Repository<Invitation>,
     @Inject(ConfigToken) private readonly config: AppConfig,
     private readonly localStrategy: LocalLoginStrategy,
   ) {
@@ -100,4 +104,121 @@ export class AuthService implements OnModuleInit {
   async validateUser(userId: string) {
     return this.userRepository.findOneBy({ id: userId });
   }
+
+  // --- User Management ---
+
+  async findAllUsers(): Promise<Omit<User, 'password'>[]> {
+    return this.userRepository.find({
+      select: ['id', 'username', 'role'],
+    });
+  }
+
+  async createInvitation(username: string, role: string = 'viewer'): Promise<{ token: string; username: string; role: string; expiresAt: Date }> {
+    // Check if username is already taken
+    const existingUser = await this.userRepository.findOneBy({ username });
+    if (existingUser) {
+      throw new ConflictException(`User "${username}" already exists`);
+    }
+
+    // Check if there's already a pending invitation for this username
+    const existingInvitation = await this.invitationRepository.findOneBy({ username, accepted: false });
+    if (existingInvitation) {
+      // Remove the old one so we can create a fresh one
+      await this.invitationRepository.remove(existingInvitation);
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+
+    const invitation = this.invitationRepository.create({
+      token,
+      username,
+      role,
+      expiresAt,
+    });
+    await this.invitationRepository.save(invitation);
+
+    return { token, username, role, expiresAt };
+  }
+
+  async getInvitation(token: string): Promise<{ username: string; role: string; expiresAt: Date }> {
+    const invitation = await this.invitationRepository.findOneBy({ token });
+
+    if (!invitation) {
+      throw new NotFoundException('Invitation not found');
+    }
+
+    if (invitation.accepted) {
+      throw new BadRequestException('This invitation has already been used');
+    }
+
+    if (invitation.expiresAt < new Date()) {
+      throw new BadRequestException('This invitation has expired');
+    }
+
+    return { username: invitation.username, role: invitation.role, expiresAt: invitation.expiresAt };
+  }
+
+  async acceptInvitation(token: string, password: string): Promise<Omit<User, 'password'>> {
+    const invitation = await this.invitationRepository.findOneBy({ token });
+
+    if (!invitation) {
+      throw new NotFoundException('Invitation not found');
+    }
+
+    if (invitation.accepted) {
+      throw new BadRequestException('This invitation has already been used');
+    }
+
+    if (invitation.expiresAt < new Date()) {
+      throw new BadRequestException('This invitation has expired');
+    }
+
+    // Double-check username isn't taken
+    const existingUser = await this.userRepository.findOneBy({ username: invitation.username });
+    if (existingUser) {
+      throw new ConflictException(`User "${invitation.username}" already exists`);
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const user = this.userRepository.create({
+      username: invitation.username,
+      password: hashedPassword,
+      role: invitation.role,
+    });
+    const saved = await this.userRepository.save(user);
+
+    // Mark invitation as accepted
+    invitation.accepted = true;
+    await this.invitationRepository.save(invitation);
+
+    return { id: saved.id, username: saved.username, role: saved.role } as User;
+  }
+
+  async updateUserRole(userId: string, role: string): Promise<Omit<User, 'password'>> {
+    const user = await this.userRepository.findOneBy({ id: userId });
+    if (!user) {
+      throw new NotFoundException(`User not found`);
+    }
+
+    user.role = role;
+    const saved = await this.userRepository.save(user);
+    return { id: saved.id, username: saved.username, role: saved.role } as User;
+  }
+
+  async deleteUser(userId: string, requestingUserId: string): Promise<void> {
+    if (userId === requestingUserId) {
+      throw new ForbiddenException('You cannot delete your own account');
+    }
+
+    const user = await this.userRepository.findOneBy({ id: userId });
+    if (!user) {
+      throw new NotFoundException(`User not found`);
+    }
+
+    // Also remove all sessions for this user
+    await this.sessionRepository.delete({ user: { id: userId } });
+    await this.userRepository.remove(user);
+  }
 }
+

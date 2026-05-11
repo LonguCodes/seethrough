@@ -1,4 +1,5 @@
-import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany, type Relation } from 'typeorm';
+import { Session } from './session.entity.js';
 
 @Entity('users')
 export class User {
@@ -13,4 +14,7 @@ export class User {
 
   @Column({ default: 'admin' })
   role: string;
+
+  @OneToMany(() => Session, (session) => session.user)
+  sessions: Relation<Session[]>;
 }
