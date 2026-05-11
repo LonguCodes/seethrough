@@ -19,7 +19,7 @@ RUN yarn install
 # Build the project
 COPY --from=builder /app/out/full/ .
 COPY turbo.json turbo.json
-RUN yarn turbo run build --filter=agent...
+RUN yarn turbo run build --filter=node-agent...
 
 FROM node:22-slim AS runner
 WORKDIR /app
@@ -35,4 +35,4 @@ ENV CLOUD_RUN 1
 
 COPY --from=installer --chown=nestjs:nestjs /app .
 
-CMD ["node", "apps/agent/dist/main.js"]
+CMD ["node", "apps/node-agent/dist/main.js"]
