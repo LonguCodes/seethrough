@@ -5,20 +5,20 @@ replicaCount: 1
 
 image:
   api:
-    repository: seethrough-api
-    tag: latest
+    repository: seethrough
+    tag: api-latest
     pullPolicy: IfNotPresent
   web:
-    repository: seethrough-web
-    tag: latest
+    repository: seethrough
+    tag: web-latest
     pullPolicy: IfNotPresent
-  agent:
-    repository: seethrough-agent
-    tag: latest
+  nodeAgent:
+    repository: seethrough
+    tag: node-agent-latest
     pullPolicy: IfNotPresent
   kubernetesAgent:
-    repository: seethrough-kubernetes-agent
-    tag: latest
+    repository: seethrough
+    tag: kubernetes-agent-latest
     pullPolicy: IfNotPresent
 
 service:

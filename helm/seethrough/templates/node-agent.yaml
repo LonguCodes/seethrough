@@ -1,25 +1,25 @@
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
-  name: agent
+  name: node-agent
   labels:
-    app: agent
+    app: node-agent
 spec:
   selector:
     matchLabels:
-      app: agent
+      app: node-agent
   template:
     metadata:
       labels:
-        app: agent
+        app: node-agent
     spec:
       hostPID: true
       hostNetwork: true
       dnsPolicy: ClusterFirstWithHostNet
       containers:
-        - name: agent
-          image: "{{ .Values.image.agent.repository }}:{{ .Values.image.agent.tag }}"
-          imagePullPolicy: {{ .Values.image.agent.pullPolicy }}
+        - name: node-agent
+          image: "{{ .Values.image.nodeAgent.repository }}:{{ .Values.image.nodeAgent.tag }}"
+          imagePullPolicy: {{ .Values.image.nodeAgent.pullPolicy }}
           securityContext:
             privileged: true
             runAsUser: 0
