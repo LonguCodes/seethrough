@@ -10,7 +10,7 @@ jobs:
     # Define a matrix of services you want to build
     strategy:
       matrix:
-        service: [agent, web, api, kubernetes-agent] 
+        service: [node-agent, web, api, kubernetes-agent] 
 
     steps:
       - name: Checkout Code
