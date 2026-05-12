@@ -5,19 +5,19 @@ replicaCount: 1
 
 image:
   api:
-    repository: seethrough
+    repository: longucodes/seethrough
     tag: api-latest
     pullPolicy: IfNotPresent
   web:
-    repository: seethrough
+    repository: longucodes/seethrough
     tag: web-latest
     pullPolicy: IfNotPresent
   nodeAgent:
-    repository: seethrough
+    repository: longucodes/seethrough
     tag: node-agent-latest
     pullPolicy: IfNotPresent
   kubernetesAgent:
-    repository: seethrough
+    repository: longucodes/seethrough
     tag: kubernetes-agent-latest
     pullPolicy: IfNotPresent
 
