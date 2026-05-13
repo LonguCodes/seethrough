@@ -24,6 +24,16 @@ spec:
             - containerPort: 3001
               name: websocket
           env:
+            - name: DEFAULT_ADMIN__USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "seethrough.fullname" . }}-auth
+                  key: admin-username
+            - name: DEFAULT_ADMIN__PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "seethrough.fullname" . }}-auth
+                  key: admin-password
             - name: DATABASE__HOST
               value: {{ .Values.storage.postgres.host | quote }}
             - name: DATABASE__DATABASE

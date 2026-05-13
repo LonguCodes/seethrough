@@ -29,6 +29,6 @@ export const ConfigSchema = Joi.object({
     REDIS__PORT: Joi.number().default(6379),
     JWT_SECRET: Joi.string().default('development-secret-key-change-me'),
     LOG_LEVEL: Joi.string().default('log'),
-    DEFAULT_ADMIN__PASSWORD: Joi.string().default('admin'),
+    DEFAULT_ADMIN__PASSWORD: Joi.string(),
     DEFAULT_ADMIN__USERNAME: Joi.string().default('admin'),
 })
