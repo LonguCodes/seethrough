@@ -1,6 +1,6 @@
-const express = require('express');
-const next = require('next');
-const { createProxyMiddleware } = require('http-proxy-middleware');
+import express from 'express';
+import next from 'next';
+import { createProxyMiddleware } from 'http-proxy-middleware';
 
 const dev = process.env.NODE_ENV !== 'production';
 const app = next({ dev });
@@ -12,28 +12,22 @@ const WS_URL = process.env.WS_URL;
 app.prepare().then(() => {
   const server = express();
 
-  // 1. API Proxy: /api/proxy/* -> {API_URL}/api/*
   const apiProxy = createProxyMiddleware({
-    target: API_URL,
-    changeOrigin: true,
-    pathRewrite: { '^/api/proxy': '/api' },
+    target: API_URL+'/api',
+    pathRewrite: function (path, req) { return path.replace('/api/proxy', '/api') },
   });
 
-  // 2. Socket.io Proxy: /socket.io -> {WS_URL}/api/socket.io
-  // This allows the frontend to just use io()
   const socketProxy = createProxyMiddleware({
     target: WS_URL,
     changeOrigin: true,
     ws: true,
-    logLevel: 'debug'
+    pathRewrite: { '^/socket.io': '/api/socket.io' },
   });
 
-  // Apply proxies
   server.use('/api/proxy', apiProxy);
   server.use('/socket.io', socketProxy);
 
-  // Default Next.js handler
-  server.all('*', (req, res) => {
+  server.all('*path', (req, res) => {
     return handle(req, res);
   });
 
@@ -43,7 +37,6 @@ app.prepare().then(() => {
     console.log(`> Ready on http://localhost:${PORT}`);
   });
 
-  // 3. Handle WebSocket Upgrade for the root /socket.io path
   httpServer.on('upgrade', (req, socket, head) => {
     if (req.url.startsWith('/socket.io')) {
       socketProxy.upgrade(req, socket, head);

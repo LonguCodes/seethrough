@@ -1,6 +1,9 @@
 import ky from 'ky';
 import { getAccessToken, getRefreshToken, refreshAccessToken, clearTokens } from './auth';
 
+let isRefreshing = false;
+let refreshHelpers: Array<() => void> = [];
+
 const api = ky.create({
   prefix: '/api/proxy',
   hooks: {
@@ -13,26 +16,38 @@ const api = ky.create({
       },
     ],
     afterResponse: [
-      async ({ request, response, retryCount }) => {
-        if (response.status === 401 && retryCount === 0) {
-          const refreshToken = getRefreshToken();
-          if (refreshToken) {
+      async ({request, response}) => {
+        // If the token is expired (401), start the refresh flow
+        if (response.status === 401) {
+          if (!isRefreshing) {
+            isRefreshing = true;
             try {
-              const newAccessToken = await refreshAccessToken(refreshToken);
-              if (newAccessToken) {
-                request.headers.set('Authorization', `Bearer ${newAccessToken}`);
-                return ky(request);
-              }
+              const refrechToken = await getRefreshToken()
+              if(!refrechToken) return response;
+              await refreshAccessToken(refrechToken);
+
+              refreshHelpers.forEach((cb) => cb());
+              refreshHelpers = [];
             } catch (error) {
-              console.error('Token refresh failed', error);
+              // If refresh fails, log them out
+              window.location.href = '/login';
+              return;
+            } finally {
+              isRefreshing = false;
             }
           }
-          
-          // If we reach here, refresh failed or no refresh token
-          clearTokens();
-          if (typeof window !== 'undefined') {
-            window.location.href = '/login';
-          }
+
+          // Wait for the refresh to finish if another request started it
+          return new Promise((resolve) => {
+            refreshHelpers.push(() => {
+              // Re-attach the new token and retry the request
+              const token = getAccessToken();
+              if (token) {
+                request.headers.set('Authorization', `Bearer ${token}`);
+              }
+              resolve(ky(request));
+            });
+          });
         }
       },
     ],
