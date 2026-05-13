@@ -10,7 +10,7 @@ jobs:
     # Define a matrix of services you want to build
     strategy:
       matrix:
-        service: [node-agent, web, api, kubernetes-agent] 
+        service: [node-agent, web, api, kubernetes-agent]
 
     steps:
       - name: Checkout Code
@@ -35,6 +35,12 @@ jobs:
 
       - name: Prune Monorepo
         run: turbo prune ${{ matrix.service }} --docker
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
 
       - name: Build and Push
         uses: docker/build-push-action@v5
