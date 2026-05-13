@@ -7,7 +7,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    # Define a matrix of services you want to build
     strategy:
       matrix:
         service: [node-agent, web, api, kubernetes-agent]
@@ -50,5 +49,5 @@ jobs:
           push: true
           platforms: linux/amd64,linux/arm64
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/seethrough:${{ matrix.service }}-latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/seethrough:${{ matrix.service }}-canary
             ${{ secrets.DOCKERHUB_USERNAME }}/seethrough:${{ matrix.service }}-${{ github.sha }}
