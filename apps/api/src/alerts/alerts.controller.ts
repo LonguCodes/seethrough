@@ -1,23 +1,30 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
 import { AlertsService } from './alerts.service.js';
-import { AlertTrigger } from './alert-trigger.entity.js';
-import { Alert } from './alert.entity.js';
 import { AlertStatus } from './alert.enums.js';
 import { GetAlertsQueryDto } from './dto/get-alerts-query.dto.js';
+import { CreateTriggerDto, UpdateTriggerDto } from './dto/create-trigger.dto.js';
+import { CreateIntegrationDto, UpdateIntegrationDto } from './dto/integration.dto.js';
+import { IntegrationService } from './integrations/integration.service.js';
 
 @Controller('alerts')
 export class AlertsController {
-  constructor(private readonly alertsService: AlertsService) { }
+  constructor(
+    private readonly alertsService: AlertsService,
+    private readonly integrationService: IntegrationService,
+  ) { }
 
-  // Triggers
-  @Get('strategies')
-  getStrategies() {
-    return this.alertsService.getStrategies();
+  // === Target schemas ===
+
+  @Get('targets')
+  getTargetSchemas() {
+    return this.alertsService.getTargetSchemas();
   }
 
+  // === Triggers ===
+
   @Post('triggers')
-  createTrigger(@Body() data: Partial<AlertTrigger>) {
-    return this.alertsService.createTrigger(data);
+  createTrigger(@Body() dto: CreateTriggerDto) {
+    return this.alertsService.createTrigger(dto);
   }
 
   @Get('triggers')
@@ -31,8 +38,8 @@ export class AlertsController {
   }
 
   @Patch('triggers/:id')
-  updateTrigger(@Param('id') id: string, @Body() data: Partial<AlertTrigger>) {
-    return this.alertsService.updateTrigger(id, data);
+  updateTrigger(@Param('id') id: string, @Body() dto: UpdateTriggerDto) {
+    return this.alertsService.updateTrigger(id, dto);
   }
 
   @Delete('triggers/:id')
@@ -40,7 +47,8 @@ export class AlertsController {
     return this.alertsService.deleteTrigger(id);
   }
 
-  // Alerts
+  // === Alert instances ===
+
   @Get()
   findAllAlerts(@Query() query: GetAlertsQueryDto) {
     return this.alertsService.findAllAlerts(query.status, query.target);
@@ -49,5 +57,32 @@ export class AlertsController {
   @Post(':id/resolve')
   resolveAlert(@Param('id') id: string) {
     return this.alertsService.resolveAlert(id);
+  }
+
+  // === Integrations ===
+
+  @Get('integrations')
+  findAllIntegrations() {
+    return this.integrationService.findAll();
+  }
+
+  @Get('integrations/:id')
+  findOneIntegration(@Param('id') id: string) {
+    return this.integrationService.findOne(id);
+  }
+
+  @Post('integrations')
+  createIntegration(@Body() dto: CreateIntegrationDto) {
+    return this.integrationService.create(dto);
+  }
+
+  @Patch('integrations/:id')
+  updateIntegration(@Param('id') id: string, @Body() dto: UpdateIntegrationDto) {
+    return this.integrationService.update(id, dto);
+  }
+
+  @Delete('integrations/:id')
+  deleteIntegration(@Param('id') id: string) {
+    return this.integrationService.delete(id);
   }
 }

@@ -7,6 +7,7 @@ import { ConfigToken } from '@longucodes/config';
 import { AppConfig } from '../config/app.config.js';
 import { Redis } from 'ioredis';
 import { RedisStorageStrategy } from './strategies/redis-storage.strategy.js';
+import { METRICS_STORAGE_TOKEN } from './strategies/metrics-storage.interface.js';
 
 @Module({
   imports: [],
@@ -24,19 +25,15 @@ import { RedisStorageStrategy } from './strategies/redis-storage.strategy.js';
       },
     },
     {
-      provide: 'METRICS_STORAGE',
-      inject: ['REDIS_CLIENT'],
-      useFactory: (redis: Redis) => {
-        return new RedisStorageStrategy(redis);
+      provide: METRICS_STORAGE_TOKEN,
+      inject: ['REDIS_CLIENT', ConfigToken],
+      useFactory: (redis: Redis, config: AppConfig) => {
+        const retentionSeconds = config.metrics.retentionMinutes * 60;
+        return new RedisStorageStrategy(redis, retentionSeconds);
       },
     }
   ],
   controllers: [MetricsController],
-  exports: [MetricsService],
+  exports: [MetricsService, METRICS_STORAGE_TOKEN],
 })
 export class MetricsModule {}
-
-
-
-
-

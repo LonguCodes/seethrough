@@ -1,7 +1,5 @@
 import { Injectable, UnauthorizedException, Inject, OnModuleInit, ConflictException, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import { ConfigToken } from '@longucodes/config';
@@ -18,12 +16,6 @@ export class AuthService implements OnModuleInit {
 
   constructor(
     private readonly jwtService: JwtService,
-    @InjectRepository(User)
-    private readonly userRepository: Repository<User>,
-    @InjectRepository(Session)
-    private readonly sessionRepository: Repository<Session>,
-    @InjectRepository(Invitation)
-    private readonly invitationRepository: Repository<Invitation>,
     @Inject(ConfigToken) private readonly config: AppConfig,
     private readonly localStrategy: LocalLoginStrategy,
   ) {
@@ -53,18 +45,18 @@ export class AuthService implements OnModuleInit {
   }
 
   async refresh(token: string) {
-    const storedToken = await this.sessionRepository.findOne({
+    const storedToken = await Session.findOne({
       where: { token },
       relations: ['user'],
     });
 
     if (!storedToken || storedToken.expiresAt < new Date()) {
-      if (storedToken) await this.sessionRepository.remove(storedToken);
+      if (storedToken) await storedToken.remove();
       throw new UnauthorizedException('Invalid or expired refresh token');
     }
 
     const tokens = await this.generateTokens(storedToken.user);
-    await this.sessionRepository.remove(storedToken);
+    await storedToken.remove();
     return tokens;
   }
 
@@ -74,12 +66,12 @@ export class AuthService implements OnModuleInit {
     const accessToken = this.jwtService.sign(payload, { expiresIn: '30m' });
     const refreshTokenValue = this.jwtService.sign(payload, { expiresIn: '14d' });
 
-    const session = this.sessionRepository.create({
+    const session = Session.create({
       token: refreshTokenValue,
       user,
       expiresAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
     });
-    await this.sessionRepository.save(session);
+    await session.save();
 
     return {
       accessToken,
@@ -88,61 +80,58 @@ export class AuthService implements OnModuleInit {
   }
 
   private async provisionDefaultUser() {
-    const userCount = await this.userRepository.count();
+    const userCount = await User.count();
     if (userCount === 0) {
       const hashedPassword = await bcrypt.hash(this.config.defaultAdmin.password, 10);
-      const admin = this.userRepository.create({
+      const admin = User.create({
         username: this.config.defaultAdmin.username,
         password: hashedPassword,
         role: 'admin',
       });
-      await this.userRepository.save(admin);
+      await admin.save();
       console.log(`Provisioned default admin user: ${this.config.defaultAdmin.username}`);
     }
   }
 
   async validateUser(userId: string) {
-    return this.userRepository.findOneBy({ id: userId });
+    return User.findOneBy({ id: userId });
   }
 
   // --- User Management ---
 
   async findAllUsers(): Promise<Omit<User, 'password'>[]> {
-    return this.userRepository.find({
+    return User.find({
       select: ['id', 'username', 'role'],
     });
   }
 
   async createInvitation(username: string, role: string = 'viewer'): Promise<{ token: string; username: string; role: string; expiresAt: Date }> {
-    // Check if username is already taken
-    const existingUser = await this.userRepository.findOneBy({ username });
+    const existingUser = await User.findOneBy({ username });
     if (existingUser) {
       throw new ConflictException(`User "${username}" already exists`);
     }
 
-    // Check if there's already a pending invitation for this username
-    const existingInvitation = await this.invitationRepository.findOneBy({ username, accepted: false });
+    const existingInvitation = await Invitation.findOneBy({ username, accepted: false });
     if (existingInvitation) {
-      // Remove the old one so we can create a fresh one
-      await this.invitationRepository.remove(existingInvitation);
+      await existingInvitation.remove();
     }
 
     const token = crypto.randomBytes(32).toString('hex');
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
-    const invitation = this.invitationRepository.create({
+    const invitation = Invitation.create({
       token,
       username,
       role,
       expiresAt,
     });
-    await this.invitationRepository.save(invitation);
+    await invitation.save();
 
     return { token, username, role, expiresAt };
   }
 
   async getInvitation(token: string): Promise<{ username: string; role: string; expiresAt: Date }> {
-    const invitation = await this.invitationRepository.findOneBy({ token });
+    const invitation = await Invitation.findOneBy({ token });
 
     if (!invitation) {
       throw new NotFoundException('Invitation not found');
@@ -160,7 +149,7 @@ export class AuthService implements OnModuleInit {
   }
 
   async acceptInvitation(token: string, password: string): Promise<Omit<User, 'password'>> {
-    const invitation = await this.invitationRepository.findOneBy({ token });
+    const invitation = await Invitation.findOneBy({ token });
 
     if (!invitation) {
       throw new NotFoundException('Invitation not found');
@@ -174,35 +163,33 @@ export class AuthService implements OnModuleInit {
       throw new BadRequestException('This invitation has expired');
     }
 
-    // Double-check username isn't taken
-    const existingUser = await this.userRepository.findOneBy({ username: invitation.username });
+    const existingUser = await User.findOneBy({ username: invitation.username });
     if (existingUser) {
       throw new ConflictException(`User "${invitation.username}" already exists`);
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const user = this.userRepository.create({
+    const user = User.create({
       username: invitation.username,
       password: hashedPassword,
       role: invitation.role,
     });
-    const saved = await this.userRepository.save(user);
+    const saved = await user.save();
 
-    // Mark invitation as accepted
     invitation.accepted = true;
-    await this.invitationRepository.save(invitation);
+    await invitation.save();
 
     return { id: saved.id, username: saved.username, role: saved.role } as User;
   }
 
   async updateUserRole(userId: string, role: string): Promise<Omit<User, 'password'>> {
-    const user = await this.userRepository.findOneBy({ id: userId });
+    const user = await User.findOneBy({ id: userId });
     if (!user) {
       throw new NotFoundException(`User not found`);
     }
 
     user.role = role;
-    const saved = await this.userRepository.save(user);
+    const saved = await user.save();
     return { id: saved.id, username: saved.username, role: saved.role } as User;
   }
 
@@ -211,14 +198,12 @@ export class AuthService implements OnModuleInit {
       throw new ForbiddenException('You cannot delete your own account');
     }
 
-    const user = await this.userRepository.findOneBy({ id: userId });
+    const user = await User.findOneBy({ id: userId });
     if (!user) {
       throw new NotFoundException(`User not found`);
     }
 
-    // Also remove all sessions for this user
-    await this.sessionRepository.delete({ user: { id: userId } });
-    await this.userRepository.remove(user);
+    await Session.delete({ user: { id: userId } });
+    await user.remove();
   }
 }
-

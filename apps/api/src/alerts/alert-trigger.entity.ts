@@ -1,8 +1,8 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, BaseEntity } from 'typeorm';
 import { AlertScope } from './alert.enums.js';
 
 @Entity('alert_triggers')
-export class AlertTrigger {
+export class AlertTrigger extends BaseEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
@@ -19,13 +19,37 @@ export class AlertTrigger {
   scopeValue: string;
 
   @Column()
-  type: string;
+  targetType: string;
+
+  @Column()
+  targetProperty: string;
+
+  @Column()
+  conditionType: string;
 
   @Column('jsonb')
-  parameters: any;
+  conditionValue: any;
+
+  @Column({ nullable: true })
+  messageTemplate: string;
 
   @Column({ default: true })
   enabled: boolean;
+
+  @Column({ default: 0 })
+  lookbackSeconds: number;
+
+  @Column({ default: true })
+  autoResolveEnabled: boolean;
+
+  @Column({ default: 0 })
+  autoResolveLookbackSeconds: number;
+
+  @Column({ default: 0 })
+  noRetriggerSeconds: number;
+
+  @Column({ nullable: true, type: 'timestamp' })
+  lastTriggeredAt: Date;
 
   @CreateDateColumn()
   createdAt: Date;

@@ -1,9 +1,9 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn, BaseEntity } from 'typeorm';
 import { AlertTrigger } from './alert-trigger.entity.js';
 import { AlertSeverity, AlertStatus } from './alert.enums.js';
 
 @Entity('alerts')
-export class Alert {
+export class Alert extends BaseEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
@@ -34,6 +34,12 @@ export class Alert {
 
   @Column()
   triggerType: string;
+
+  @Column({ default: false })
+  autoResolved: boolean;
+
+  @Column({ nullable: true, type: 'timestamp' })
+  lastMatchedAt: Date;
 
   @Column({ nullable: true })
   resolvedAt: Date;

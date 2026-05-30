@@ -1,8 +1,8 @@
-import { Entity, PrimaryGeneratedColumn, Column, OneToMany, type Relation } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany, BaseEntity } from 'typeorm';
 import { Session } from './session.entity.js';
 
 @Entity('users')
-export class User {
+export class User extends BaseEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
@@ -16,5 +16,5 @@ export class User {
   role: string;
 
   @OneToMany(() => Session, (session) => session.user)
-  sessions: Relation<Session[]>;
+  sessions: Session[];
 }

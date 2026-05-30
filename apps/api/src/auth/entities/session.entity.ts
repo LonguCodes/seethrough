@@ -1,8 +1,8 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, type Relation } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, BaseEntity } from 'typeorm';
 import { User } from './user.entity.js';
 
 @Entity('sessions')
-export class Session {
+export class Session extends BaseEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
@@ -13,7 +13,7 @@ export class Session {
   expiresAt: Date;
 
   @ManyToOne(() => User, (user) => user.sessions, { onDelete: 'CASCADE' })
-  user: Relation<User>;
+  user: User;
 
   @CreateDateColumn()
   createdAt: Date;
