@@ -18,6 +18,9 @@ export interface AppConfig {
         username: string;
         password: string;
     }
+    metrics: {
+        retentionMinutes: number;
+    }
 }
 export const ConfigSchema = Joi.object({
     DATABASE__HOST: Joi.string().required(),
@@ -31,4 +34,5 @@ export const ConfigSchema = Joi.object({
     LOG_LEVEL: Joi.string().default('log'),
     DEFAULT_ADMIN__PASSWORD: Joi.string(),
     DEFAULT_ADMIN__USERNAME: Joi.string().default('admin'),
+    METRICS__RETENTION_MINUTES: Joi.number().default(360),
 })

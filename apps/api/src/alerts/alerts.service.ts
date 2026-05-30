@@ -1,11 +1,12 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, MoreThan, IsNull } from 'typeorm';
 import { AlertTrigger } from './alert-trigger.entity.js';
 import { Alert } from './alert.entity.js';
 import { AlertStatus } from './alert.enums.js';
-import { Inject } from '@nestjs/common';
-import { TriggerStrategy } from './strategies/trigger-strategy.interface.js';
+import { CreateTriggerDto, UpdateTriggerDto } from './dto/create-trigger.dto.js';
+import { TargetRegistry } from './targets/target.registry.js';
+import {shake} from "radash";
 
 @Injectable()
 export class AlertsService {
@@ -14,18 +15,38 @@ export class AlertsService {
     private readonly alertTriggerRepository: Repository<AlertTrigger>,
     @InjectRepository(Alert)
     private readonly alertRepository: Repository<Alert>,
-    @Inject('TRIGGER_STRATEGIES') private readonly strategies: TriggerStrategy[],
+    private readonly targetRegistry: TargetRegistry,
   ) { }
 
   // Trigger Methods
-  createTrigger(data: Partial<AlertTrigger>) {
-    const trigger = this.alertTriggerRepository.create(data);
+  createTrigger(dto: CreateTriggerDto) {
+    const trigger = this.alertTriggerRepository.create({
+      name: dto.name,
+      scope: dto.scope,
+      scopeValue: dto.scopeValue,
+      targetType: dto.targetType,
+      targetProperty: dto.targetProperty,
+      conditionType: dto.conditionType,
+      conditionValue: dto.conditionValue,
+      messageTemplate: dto.messageTemplate,
+      enabled: dto.enabled ?? true,
+      lookbackSeconds: dto.lookbackSeconds ?? 0,
+      autoResolveEnabled: dto.autoResolveEnabled ?? true,
+      autoResolveLookbackSeconds: dto.autoResolveLookbackSeconds ?? 0,
+      noRetriggerSeconds: dto.noRetriggerSeconds ?? 0,
+    });
     return this.alertTriggerRepository.save(trigger);
   }
 
-  async updateTrigger(id: string, data: Partial<AlertTrigger>) {
-    await this.alertTriggerRepository.update(id, data);
-    return this.alertTriggerRepository.findOneBy({ id });
+  async updateTrigger(id: string, dto: UpdateTriggerDto) {
+    const trigger = await this.alertTriggerRepository.findOneBy({ id });
+    if (!trigger) {
+      throw new NotFoundException('Trigger not found');
+    }
+
+    Object.assign(trigger, shake(dto))
+
+    return this.alertTriggerRepository.save(trigger);
   }
 
   deleteTrigger(id: string) {
@@ -34,6 +55,10 @@ export class AlertsService {
 
   findAllTriggers() {
     return this.alertTriggerRepository.find();
+  }
+
+  findOneTrigger(id: string) {
+    return this.alertTriggerRepository.findOneBy({ id });
   }
 
   findEnabledTriggers() {
@@ -62,7 +87,7 @@ export class AlertsService {
     return query.getMany();
   }
 
-  async findActiveAlertForTriggerAndTarget(triggerId: string, target: string) {
+  async findActiveAlertForTriggerAndTarget(triggerId: string, target: string): Promise<Alert | null> {
     return this.alertRepository.createQueryBuilder('alert')
       .where('alert.triggerId = :triggerId', { triggerId })
       .andWhere('alert.status = :status', { status: AlertStatus.ACTIVE })
@@ -70,26 +95,44 @@ export class AlertsService {
       .getOne();
   }
 
-  async resolveAlert(id: string) {
+  async findActiveAlerts(): Promise<Alert[]> {
+    return this.alertRepository.find({
+      where: { status: AlertStatus.ACTIVE },
+      relations: ['trigger'],
+    });
+  }
+
+  async findActiveAlertsForTrigger(triggerId: string): Promise<Alert[]> {
+    return this.alertRepository.find({
+      where: {
+        triggerId,
+        status: AlertStatus.ACTIVE,
+      },
+    });
+  }
+
+  async resolveAlert(id: string, autoResolved = false) {
     await this.alertRepository.update(id, {
       status: AlertStatus.RESOLVED,
-      resolvedAt: new Date()
+      resolvedAt: new Date(),
+      autoResolved,
     });
     return this.alertRepository.findOneBy({ id });
   }
 
-  // ... (keeping other trigger methods if needed, but the user asked for Alert focus)
-  findOneTrigger(id: string) {
-    return this.alertTriggerRepository.findOneBy({ id });
+  async updateLastMatchedAt(id: string) {
+    await this.alertRepository.update(id, {
+      lastMatchedAt: new Date(),
+    });
   }
 
-  getStrategies() {
-    return this.strategies.map(s => ({
-      type: s.type,
-      targetType: s.targetType,
-      supportedScopes: s.supportedScopes,
-      requiredParameters: s.requiredParameters,
-      unit: s.unit,
-    }));
+  async updateTriggerLastTriggeredAt(triggerId: string) {
+    await this.alertTriggerRepository.update(triggerId, {
+      lastTriggeredAt: new Date(),
+    });
+  }
+
+  getTargetSchemas() {
+    return this.targetRegistry.getAllTargetSchemas();
   }
 }

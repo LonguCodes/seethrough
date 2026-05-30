@@ -1,16 +1,17 @@
-import { Module, forwardRef } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AlertsService } from './alerts.service.js';
 import { AlertsController } from './alerts.controller.js';
 import { AlertTrigger } from './alert-trigger.entity.js';
 import { Alert } from './alert.entity.js';
-import { CpuThresholdStrategy } from './strategies/cpu-threshold.strategy.js';
-import { PodErrorStatusStrategy } from './strategies/pod-error-status.strategy.js';
-import { PvcStatusStrategy } from './strategies/pvc-status.strategy.js';
-import { PvcUsageStrategy } from './strategies/pvc-threshold.strategy.js';
 import { AlertProcessorService } from './alert-processor.service.js';
 import { ClusterModule } from '../cluster/cluster.module.js';
 import { MetricsModule } from '../metrics/metrics.module.js';
+import { NodeTarget } from './targets/node.target.js';
+import { PodTarget } from './targets/pod.target.js';
+import { PvcTarget } from './targets/pvc.target.js';
+import { TargetRegistry } from './targets/target.registry.js';
+import { ConditionEvaluator } from './evaluators/condition-evaluator.service.js';
 
 @Module({
   imports: [
@@ -21,14 +22,16 @@ import { MetricsModule } from '../metrics/metrics.module.js';
   providers: [
     AlertsService,
     AlertProcessorService,
-    CpuThresholdStrategy,
-    PodErrorStatusStrategy,
-    PvcStatusStrategy,
-    PvcUsageStrategy,
+    NodeTarget,
+    PodTarget,
+    PvcTarget,
+    ConditionEvaluator,
     {
-      provide: 'TRIGGER_STRATEGIES',
-      useFactory: (cpu: CpuThresholdStrategy, podError: PodErrorStatusStrategy, pvcStatus: PvcStatusStrategy, pvcThreshold: PvcUsageStrategy) => [cpu, podError, pvcStatus, pvcThreshold],
-      inject: [CpuThresholdStrategy, PodErrorStatusStrategy, PvcStatusStrategy, PvcUsageStrategy],
+      provide: TargetRegistry,
+      useFactory: (nodeTarget: NodeTarget, podTarget: PodTarget, pvcTarget: PvcTarget) => {
+        return new TargetRegistry([nodeTarget, podTarget, pvcTarget]);
+      },
+      inject: [NodeTarget, PodTarget, PvcTarget],
     },
   ],
   controllers: [AlertsController],

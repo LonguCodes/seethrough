@@ -1,16 +1,39 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { LayoutDashboard, Settings, Plus, Trash2, Power, PowerOff, Activity } from 'lucide-react';
+import { Settings, Plus, Trash2, Power, PowerOff, Activity } from 'lucide-react';
 
-interface Strategy {
-  type: string;
-  targetType: string;
-  supportedScopes: string[];
-  requiredParameters: string[];
-  allParameters: string[];
+// === ConditionValue is always an object ===
+interface SingleConditionValue {
+  value: number | string;
+}
+
+interface RangeConditionValue {
+  min: number;
+  max: number;
+}
+
+interface InConditionValue {
+  values: (number | string)[];
+}
+
+type ConditionValue = SingleConditionValue | RangeConditionValue | InConditionValue;
+
+interface TargetProperty {
+  propertyKey: string;
+  name: string;
+  label: string;
+  type: 'number' | 'string' | 'enum';
+  enumValues?: string[];
   unit?: string;
+  description?: string;
+  supportedConditionTypes: string[];
+}
+
+interface TargetSchema {
+  type: string;
+  label: string;
+  properties: TargetProperty[];
 }
 
 interface AlertTrigger {
@@ -18,16 +41,23 @@ interface AlertTrigger {
   name: string;
   scope: string;
   scopeValue?: string;
-  type: string;
-  parameters: Record<string, any>;
+  targetType: string;
+  targetProperty: string;
+  conditionType: string;
+  conditionValue: ConditionValue;
+  messageTemplate?: string;
   enabled: boolean;
+  lookbackSeconds: number;
+  autoResolveEnabled: boolean;
+  autoResolveLookbackSeconds: number;
+  noRetriggerSeconds: number;
   createdAt: string;
 }
 
 import api from '../../lib/api';
 
 export default function AlertsConfiguration() {
-  const [strategies, setStrategies] = useState<Strategy[]>([]);
+  const [targets, setTargets] = useState<TargetSchema[]>([]);
   const [triggers, setTriggers] = useState<AlertTrigger[]>([]);
   const [loading, setLoading] = useState(true);
   const [clusterInfo, setClusterInfo] = useState<{ nodes: any[], namespaces: any[], pods: any[], pvcs: any[] }>({ nodes: [], namespaces: [], pods: [], pvcs: [] });
@@ -36,10 +66,21 @@ export default function AlertsConfiguration() {
   // Form State
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState('');
-  const [type, setType] = useState('');
+  const [targetType, setTargetType] = useState('');
+  const [targetProperty, setTargetProperty] = useState('');
+  const [conditionType, setConditionType] = useState('');
+  const [conditionValue, setConditionValue] = useState<ConditionValue | null>(null);
   const [scope, setScope] = useState('');
   const [scopeValue, setScopeValue] = useState('');
-  const [parameters, setParameters] = useState<Record<string, string>>({});
+  const [messageTemplate, setMessageTemplate] = useState('');
+  const [lookbackSeconds, setLookbackSeconds] = useState(0);
+  const [autoResolveEnabled, setAutoResolveEnabled] = useState(true);
+  const [autoResolveLookbackSeconds, setAutoResolveLookbackSeconds] = useState(0);
+  const [noRetriggerSeconds, setNoRetriggerSeconds] = useState(0);
+
+  // Derived state for conditional form rendering
+  const [selectedTarget, setSelectedTarget] = useState<TargetSchema | null>(null);
+  const [selectedProperty, setSelectedProperty] = useState<TargetProperty | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -47,14 +88,14 @@ export default function AlertsConfiguration() {
 
   const fetchData = async () => {
     try {
-      const [stratsData, triggersData, clusterData, metricsData]: any = await Promise.all([
-        api.get('alerts/strategies').json(),
+      const [targetsData, triggersData, clusterData, metricsData]: any = await Promise.all([
+        api.get('alerts/targets').json(),
         api.get('alerts/triggers').json(),
         api.get('cluster-info').json(),
         api.get('metrics/latest').json()
       ]);
 
-      setStrategies(stratsData);
+      setTargets(targetsData);
       setTriggers(triggersData);
       setClusterInfo(clusterData);
       setLatestMetrics(metricsData);
@@ -65,51 +106,213 @@ export default function AlertsConfiguration() {
     }
   };
 
-  const handleTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+  const handleTargetTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const val = e.target.value;
-    setType(val);
-    const strat = strategies.find(s => s.type === val);
-    if (strat) {
-      setScope(strat.supportedScopes[0] || '');
-      const initParams: Record<string, string> = {};
-      const combinedParams = Array.from(new Set([...(strat.allParameters || []), ...(strat.requiredParameters || [])]));
-      combinedParams.forEach(p => { initParams[p] = ''; });
-      setParameters(initParams);
-    } else {
-      setScope('');
-      setParameters({});
+    setTargetType(val);
+    setTargetProperty('');
+    setConditionType('');
+    setConditionValue(null);
+    setScope('');
+    setScopeValue('');
+
+    const target = targets.find(t => t.type === val) || null;
+    setSelectedTarget(target);
+    setSelectedProperty(null);
+
+    if (target) {
+      setScope('cluster');
     }
+  };
+
+  const handlePropertyChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const val = e.target.value;
+    setTargetProperty(val);
+    setConditionType('');
+    setConditionValue(null);
+
+    const prop = selectedTarget?.properties.find(p => p.name === val) || null;
+    setSelectedProperty(prop);
+
+    if (prop) {
+      setConditionType(prop.supportedConditionTypes[0] || '');
+    }
+  };
+
+  const handleConditionTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const ct = e.target.value;
+    setConditionType(ct);
+    setConditionValue(null);
+  };
+
+  /**
+   * Build the conditionValue object based on condition type and the raw user input.
+   * Always returns an object matching the ConditionValue union type.
+   */
+  const buildConditionValue = (ct: string, raw: any): ConditionValue => {
+    if (ct === 'range') {
+      return { min: raw.min ?? 0, max: raw.max ?? 0 } as RangeConditionValue;
+    }
+    if (ct === 'in') {
+      return { values: raw.values ?? [] } as InConditionValue;
+    }
+    // Single-value types: eq, neq, gt, gte, lt, lte
+    return { value: raw } as SingleConditionValue;
+  };
+
+  const renderConditionValueInput = () => {
+    if (!selectedProperty) return null;
+
+    const { type, enumValues, unit } = selectedProperty;
+
+    // For enum type with 'eq' or 'neq' -> dropdown (value stored as { value: string })
+    if (type === 'enum' && enumValues) {
+      if (conditionType === 'in') {
+        return (
+          <div className="space-y-2">
+            <label className="text-sm text-slate-400">Select values (hold Ctrl/Cmd for multiple)</label>
+            <select
+              multiple
+              className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-[var(--accent)] transition-colors h-32"
+              value={((conditionValue as InConditionValue)?.values || []).map(String)}
+              onChange={e => {
+                const selected = Array.from(e.target.selectedOptions, opt => opt.value);
+                setConditionValue(buildConditionValue('in', { values: selected }));
+              }}
+            >
+              {enumValues.map(v => (
+                <option key={v} value={v}>{v}</option>
+              ))}
+            </select>
+          </div>
+        );
+      }
+
+      return (
+        <div className="space-y-2">
+          <label className="text-sm text-slate-400">Value</label>
+          <select
+            className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-[var(--accent)] transition-colors"
+            value={(conditionValue as SingleConditionValue)?.value ?? ''}
+            onChange={e => setConditionValue(buildConditionValue(conditionType, e.target.value))}
+          >
+            <option value="">Select a value</option>
+            {enumValues.map(v => (
+              <option key={v} value={v}>{v}</option>
+            ))}
+          </select>
+        </div>
+      );
+    }
+
+    // For range condition type -> { min, max }
+    if (conditionType === 'range') {
+      return (
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <label className="text-sm text-slate-400">Min {unit ? `(${unit})` : ''}</label>
+            <input
+              type="number"
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-[var(--accent)] transition-colors"
+              value={(conditionValue as RangeConditionValue)?.min ?? ''}
+              onChange={e => setConditionValue(buildConditionValue('range', { min: parseFloat(e.target.value) || 0, max: (conditionValue as RangeConditionValue)?.max ?? 0 }))}
+              placeholder="Minimum"
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm text-slate-400">Max {unit ? `(${unit})` : ''}</label>
+            <input
+              type="number"
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-[var(--accent)] transition-colors"
+              value={(conditionValue as RangeConditionValue)?.max ?? ''}
+              onChange={e => setConditionValue(buildConditionValue('range', { min: (conditionValue as RangeConditionValue)?.min ?? 0, max: parseFloat(e.target.value) || 0 }))}
+              placeholder="Maximum"
+            />
+          </div>
+        </div>
+      );
+    }
+
+    // Default: single value input -> { value: number|string }
+    return (
+      <div className="space-y-2">
+        <label className="text-sm text-slate-400">
+          Value {unit ? `(${unit})` : ''}
+        </label>
+        <input
+          type={type === 'number' ? 'number' : 'text'}
+          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-[var(--accent)] transition-colors"
+          value={(conditionValue as SingleConditionValue)?.value ?? ''}
+          onChange={e => setConditionValue(buildConditionValue(conditionType, type === 'number' ? parseFloat(e.target.value) || 0 : e.target.value))}
+          placeholder={`Enter value`}
+        />
+      </div>
+    );
+  };
+
+  const getScopeOptions = () => {
+    if (!selectedTarget) return [];
+    const scopes = ['cluster'];
+    if (selectedTarget.type === 'Pod' || selectedTarget.type === 'PVC') {
+      scopes.push('namespace');
+    }
+    scopes.push(selectedTarget.type.toLowerCase());
+    return scopes;
+  };
+
+  const getScopeValueOptions = () => {
+    if (scope === 'cluster') return [];
+    if (scope === 'namespace') return clusterInfo.namespaces.map(ns => ({ value: ns.name, label: ns.name }));
+    if (scope === 'node') return latestMetrics.map(m => ({ value: m.machineId, label: m.machineId }));
+    if (scope === 'pod') return clusterInfo.pods.filter(Boolean).map(pod => ({ value: pod.name, label: `${pod.namespace}/${pod.name}` }));
+    if (scope === 'pvc') return (clusterInfo.pvcs || []).map(pvc => ({ value: pvc.name, label: `${pvc.namespace}/${pvc.name}` }));
+    return [];
   };
 
   const handleCreateTrigger = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Convert numeric strings to numbers if needed (e.g. threshold)
-    const parsedParams: Record<string, any> = {};
-    for (const [key, val] of Object.entries(parameters)) {
-      parsedParams[key] = isNaN(Number(val)) ? val : Number(val);
-    }
-
     try {
       await api.post('alerts/triggers', {
         json: {
           name,
-          type,
+          targetType,
+          targetProperty,
+          conditionType,
+          conditionValue,
           scope,
           scopeValue: scopeValue || null,
-          parameters: parsedParams,
+          messageTemplate: messageTemplate || null,
           enabled: true,
+          lookbackSeconds,
+          autoResolveEnabled,
+          autoResolveLookbackSeconds,
+          noRetriggerSeconds,
         },
       });
 
       setShowForm(false);
-      setName('');
-      setScopeValue('');
-      setType('');
+      resetForm();
       fetchData();
     } catch (err) {
       console.error('Failed to create trigger', err);
     }
+  };
+
+  const resetForm = () => {
+    setName('');
+    setTargetType('');
+    setTargetProperty('');
+    setConditionType('');
+    setConditionValue(null);
+    setScope('');
+    setScopeValue('');
+    setMessageTemplate('');
+    setLookbackSeconds(0);
+    setAutoResolveEnabled(true);
+    setAutoResolveLookbackSeconds(0);
+    setNoRetriggerSeconds(0);
+    setSelectedTarget(null);
+    setSelectedProperty(null);
   };
 
   const toggleTrigger = async (id: string, currentlyEnabled: boolean) => {
@@ -131,6 +334,19 @@ export default function AlertsConfiguration() {
     } catch (err) {
       console.error('Failed to delete logger', err);
     }
+  };
+
+  const formatConditionValue = (conditionType: string, value: ConditionValue): string => {
+    if (conditionType === 'range') {
+      const r = value as RangeConditionValue;
+      return `${r?.min ?? '?'} - ${r?.max ?? '?'}`;
+    }
+    if (conditionType === 'in') {
+      const i = value as InConditionValue;
+      return (i?.values || []).join(', ');
+    }
+    const s = value as SingleConditionValue;
+    return String(s?.value ?? '');
   };
 
   return (
@@ -171,99 +387,183 @@ export default function AlertsConfiguration() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm text-slate-400">Strategy Type</label>
+              <label className="text-sm text-slate-400">Target Type</label>
               <select
                 required
                 className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-[var(--accent)] transition-colors appearance-none"
-                value={type}
-                onChange={handleTypeChange}
+                value={targetType}
+                onChange={handleTargetTypeChange}
               >
-                <option value="" disabled>Select a strategy</option>
-                {strategies.map(s => <option key={s.type} value={s.type}>{s.type.replaceAll('_', ' ').replace(/^[a-z]/, (c) => c.toUpperCase())}</option>)}
+                <option value="" disabled>Select a target type</option>
+                {targets.map(t => <option key={t.type} value={t.type}>{t.label}</option>)}
               </select>
             </div>
 
-            {type && (
+            {selectedTarget && (
               <>
+                <div className="space-y-2">
+                  <label className="text-sm text-slate-400">Property</label>
+                  <select
+                    required
+                    className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-[var(--accent)] transition-colors appearance-none"
+                    value={targetProperty}
+                    onChange={handlePropertyChange}
+                  >
+                    <option value="" disabled>Select a property</option>
+                    {selectedTarget.properties.map(p => (
+                      <option key={p.name} value={p.name}>
+                        {p.label} {p.unit ? `(${p.unit})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                  {selectedProperty?.description && (
+                    <p className="text-xs text-slate-500 mt-1">{selectedProperty.description}</p>
+                  )}
+                </div>
+
+                {selectedProperty && (
+                  <>
+                    <div className="space-y-2">
+                      <label className="text-sm text-slate-400">Condition</label>
+                      <select
+                        required
+                        className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-[var(--accent)] transition-colors appearance-none"
+                        value={conditionType}
+                        onChange={handleConditionTypeChange}
+                      >
+                        <option value="" disabled>Select condition</option>
+                        {selectedProperty.supportedConditionTypes.map(ct => (
+                          <option key={ct} value={ct}>
+                            {ct === 'eq' ? 'Equals' :
+                             ct === 'neq' ? 'Not Equals' :
+                             ct === 'gt' ? 'Greater Than' :
+                             ct === 'gte' ? 'Greater Than or Equal' :
+                             ct === 'lt' ? 'Less Than' :
+                             ct === 'lte' ? 'Less Than or Equal' :
+                             ct === 'range' ? 'Range' :
+                             ct === 'in' ? 'In List' : ct}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {conditionType && (
+                      <div className="md:col-span-2">
+                        {renderConditionValueInput()}
+                      </div>
+                    )}
+                  </>
+                )}
+
                 <div className="space-y-2">
                   <label className="text-sm text-slate-400">Scope</label>
                   <select
                     required
                     className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-[var(--accent)] transition-colors appearance-none"
                     value={scope}
-                    onChange={e => setScope(e.target.value)}
+                    onChange={e => { setScope(e.target.value); setScopeValue(''); }}
                   >
-                    {strategies.find(s => s.type === type)?.supportedScopes.map(sc => (
+                    {getScopeOptions().map(sc => (
                       <option key={sc} value={sc}>{sc.replace(/^[a-z]/, (c) => c.toUpperCase())}</option>
                     ))}
                   </select>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-sm text-slate-400">Target Value (Optional)</label>
-                  {scope === 'cluster' ? (
-                    <input
-                      disabled
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-slate-500 outline-none cursor-not-allowed"
-                      value="N/A (Cluster Scope)"
-                    />
-                  ) : (
+                {scope !== 'cluster' && (
+                  <div className="space-y-2">
+                    <label className="text-sm text-slate-400">Target Value</label>
                     <select
                       className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-[var(--accent)] transition-colors appearance-none"
                       value={scopeValue}
                       onChange={e => setScopeValue(e.target.value)}
                     >
-                      <option value="">Select a target (or leave for all)</option>
-                      {scope === 'namespace' && clusterInfo.namespaces.map(ns => (
-                        <option key={ns.name} value={ns.name}>{ns.name}</option>
-                      ))}
-                      {scope === 'node' && latestMetrics.map(m => (
-                        <option key={m.machineId} value={m.machineId}>{m.machineId}</option>
-                      ))}
-                      {scope === 'pod' && clusterInfo.pods.map(pod => (
-                        <option key={`${pod.namespace}/${pod.name}`} value={pod.name}>{pod.namespace}/{pod.name}</option>
-                      ))}
-                      {scope === 'pvc' && (clusterInfo.pvcs || []).map(pvc => (
-                        <option key={`${pvc.namespace}/${pvc.name}`} value={pvc.name}>{pvc.namespace}/{pvc.name}</option>
+                      <option value="">All {scope}s</option>
+                      {getScopeValueOptions().map(opt => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
                       ))}
                     </select>
-                  )}
-                </div>
+                  </div>
+                )}
 
-                {Array.from(new Set([...(strategies.find(s => s.type === type)?.allParameters || []), ...(strategies.find(s => s.type === type)?.requiredParameters || [])])).map(param => {
-                  const strat = strategies.find(s => s.type === type);
-                  const isRequired = strat?.requiredParameters.includes(param);
-                  return (
-                  <div key={param} className="space-y-2 md:col-span-2">
-                    <label className="text-sm text-slate-400 capitalize">
-                      {param}
-                      {strat?.unit && <span className="ml-1 text-[var(--accent)] opacity-70">({strat.unit})</span>}
-                      {isRequired ? '' : ' (Optional)'}
-                    </label>
-                    <div className="relative">
+                {/* Advanced options */}
+                <div className="md:col-span-2 border-t border-white/10 pt-4 mt-2">
+                  <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-widest mb-4">Advanced Options</h3>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-sm text-slate-400">Lookback (seconds)</label>
                       <input
-                        required={isRequired}
-                        type="text"
-                        className={`w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-[var(--accent)] transition-colors ${strat?.unit ? 'pr-12' : ''}`}
-                        value={parameters[param] || ''}
-                        onChange={e => setParameters({ ...parameters, [param]: e.target.value })}
-                        placeholder={`Enter ${param}`}
+                        type="number"
+                        min={0}
+                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-[var(--accent)] transition-colors"
+                        value={lookbackSeconds}
+                        onChange={e => setLookbackSeconds(parseInt(e.target.value) || 0)}
+                        placeholder="0 = no lookback"
                       />
-                      {strat?.unit && (
-                        <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 font-mono pointer-events-none">
-                          {strat.unit}
-                        </div>
-                      )}
+                      <p className="text-xs text-slate-500">Condition must match for the past X seconds</p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm text-slate-400">No Retrigger (seconds)</label>
+                      <input
+                        type="number"
+                        min={0}
+                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-[var(--accent)] transition-colors"
+                        value={noRetriggerSeconds}
+                        onChange={e => setNoRetriggerSeconds(parseInt(e.target.value) || 0)}
+                        placeholder="0 = always retrigger"
+                      />
+                      <p className="text-xs text-slate-500">Cooldown before same trigger fires again</p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm text-slate-400">Auto-Resolve Lookback (seconds)</label>
+                      <input
+                        type="number"
+                        min={0}
+                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-[var(--accent)] transition-colors"
+                        value={autoResolveLookbackSeconds}
+                        onChange={e => setAutoResolveLookbackSeconds(parseInt(e.target.value) || 0)}
+                        placeholder="0 = use trigger lookback"
+                      />
+                      <p className="text-xs text-slate-500">Condition must not match for this period to auto-resolve</p>
                     </div>
                   </div>
-                )})}
+
+                  <div className="flex items-center gap-3 mt-4">
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="sr-only peer"
+                        checked={autoResolveEnabled}
+                        onChange={e => setAutoResolveEnabled(e.target.checked)}
+                      />
+                      <div className="w-9 h-5 bg-white/10 rounded-full peer peer-checked:bg-[var(--accent)] peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:start-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all"></div>
+                    </label>
+                    <span className="text-sm text-slate-400">Enable auto-resolve</span>
+                  </div>
+
+                  <div className="mt-4 space-y-2">
+                    <label className="text-sm text-slate-400">Custom Message Template (optional)</label>
+                    <input
+                      type="text"
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-[var(--accent)] transition-colors"
+                      value={messageTemplate}
+                      onChange={e => setMessageTemplate(e.target.value)}
+                      placeholder='e.g. {targetType} {targetId} has {property} = {value}'
+                    />
+                    <p className="text-xs text-slate-500">
+                      Variables: {'{targetType}'}, {'{targetId}'}, {'{property}'}, {'{value}'}, {'{threshold}'}, {'{conditionType}'}
+                    </p>
+                  </div>
+                </div>
               </>
             )}
 
             <div className="md:col-span-2 flex justify-end gap-4 mt-4">
               <button
                 type="button"
-                onClick={() => setShowForm(false)}
+                onClick={() => { setShowForm(false); resetForm(); }}
                 className="px-6 py-2 rounded-xl text-slate-400 bg-white/5 hover:bg-white/10 transition-colors"
               >
                 Cancel
@@ -293,14 +593,14 @@ export default function AlertsConfiguration() {
             <p className="text-slate-400 max-w-md">No alert triggers configured. Click the button above to create one.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(380px,1fr))] gap-6">
             {triggers.map(trigger => (
               <div key={trigger.id} className={`glass p-6 rounded-3xl transition-all ${trigger.enabled ? 'border-[var(--accent)]/30 shadow-[0_4px_20px_0_var(--accent-glow)]' : 'opacity-70'}`}>
                 <div className="flex justify-between items-start mb-4">
                   <div>
                     <h3 className="font-semibold text-lg text-slate-200">{trigger.name}</h3>
                     <p className="text-xs text-slate-400 flex gap-2 mt-1">
-                      <span className="uppercase text-[var(--accent)] font-medium">{trigger.type}</span>
+                      <span className="uppercase text-[var(--accent)] font-medium">{trigger.targetType}</span>
                       &bull;
                       <span className="capitalize">{trigger.scope}</span>
                       {trigger.scopeValue && <span className="opacity-80">({trigger.scopeValue})</span>}
@@ -324,20 +624,35 @@ export default function AlertsConfiguration() {
                   </div>
                 </div>
 
-                <div className="bg-white/5 rounded-xl p-4 mt-6">
-                  <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3">Parameters</h4>
-                  {Object.entries(trigger.parameters).map(([k, v]) => {
-                    const strat = strategies.find(s => s.type === trigger.type);
-                    return (
-                      <div key={k} className="flex justify-between items-center text-sm mb-2 last:mb-0 text-slate-300">
-                        <span className="capitalize text-slate-400">{k}</span>
-                        <span className="font-mono bg-black/40 px-2 py-0.5 rounded">
-                          {typeof v === 'object' ? JSON.stringify(v) : String(v)}
-                          {strat?.unit && <span className="ml-1 opacity-50">{strat.unit}</span>}
-                        </span>
-                      </div>
-                    );
-                  })}
+                <div className="bg-white/5 rounded-xl p-4 mt-4 space-y-2">
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-slate-400">Property</span>
+                    <span className="font-mono text-slate-200">{trigger.targetProperty}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-slate-400">Condition</span>
+                    <span className="font-mono text-slate-200">
+                      {trigger.conditionType}: {formatConditionValue(trigger.conditionType, trigger.conditionValue)}
+                    </span>
+                  </div>
+                  {trigger.lookbackSeconds > 0 && (
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-slate-400">Lookback</span>
+                      <span className="font-mono text-slate-200">{trigger.lookbackSeconds}s</span>
+                    </div>
+                  )}
+                  {trigger.noRetriggerSeconds > 0 && (
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-slate-400">Cooldown</span>
+                      <span className="font-mono text-slate-200">{trigger.noRetriggerSeconds}s</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-slate-400">Auto-Resolve</span>
+                    <span className={`font-mono ${trigger.autoResolveEnabled ? 'text-[var(--success)]' : 'text-slate-500'}`}>
+                      {trigger.autoResolveEnabled ? 'Enabled' : 'Disabled'}
+                    </span>
+                  </div>
                 </div>
               </div>
             ))}

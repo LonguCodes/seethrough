@@ -35,6 +35,12 @@ export class Alert {
   @Column()
   triggerType: string;
 
+  @Column({ default: false })
+  autoResolved: boolean;
+
+  @Column({ nullable: true, type: 'timestamp' })
+  lastMatchedAt: Date;
+
   @Column({ nullable: true })
   resolvedAt: Date;
 

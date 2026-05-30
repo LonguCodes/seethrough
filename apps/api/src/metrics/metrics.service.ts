@@ -1,11 +1,12 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { MachineMetric } from './metric.entity.js';
 import type { IMetricsStorage } from './strategies/metrics-storage.interface.js';
+import { METRICS_STORAGE_TOKEN } from './strategies/metrics-storage.interface.js';
 
 @Injectable()
 export class MetricsService {
   constructor(
-    @Inject('METRICS_STORAGE') private readonly storage: IMetricsStorage,
+    @Inject(METRICS_STORAGE_TOKEN) private readonly storage: IMetricsStorage,
   ) { }
 
   async saveMetric(
