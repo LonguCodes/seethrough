@@ -10,7 +10,7 @@ export class AlertIntegration extends BaseEntity {
   @Column()
   name: string;
 
-  @Column()
+  @Column({type: "text"})
   type: IntegrationType;
 
   @Column('jsonb')

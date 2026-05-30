@@ -6,20 +6,32 @@ import { ConfigToken } from '@longucodes/config';
 import { User } from './entities/user.entity.js';
 import { Session } from './entities/session.entity.js';
 import { Invitation } from './entities/invitation.entity.js';
+import { SsoConfig } from './entities/sso-config.entity.js';
 import { LoginStrategy } from './strategies/login-strategy.interface.js';
 import { LocalLoginStrategy } from './strategies/local-login.strategy.js';
+import { SsoLoginStrategy } from './strategies/sso-login-strategy.interface.js';
+import { SamlStrategy } from './strategies/saml.strategy.js';
+import { OidcStrategy } from './strategies/oidc.strategy.js';
+import { SsoService } from './sso.service.js';
 import type { AppConfig } from '../config/app.config.js';
+import type { SsoIdentity } from './auth.service.types.js';
 
 @Injectable()
 export class AuthService implements OnModuleInit {
   private strategies: Map<string, LoginStrategy> = new Map();
+  private ssoStrategies: Map<string, SsoLoginStrategy> = new Map();
 
   constructor(
     private readonly jwtService: JwtService,
     @Inject(ConfigToken) private readonly config: AppConfig,
     private readonly localStrategy: LocalLoginStrategy,
+    private readonly ssoService: SsoService,
+    private readonly samlStrategy: SamlStrategy,
+    private readonly oidcStrategy: OidcStrategy,
   ) {
     this.registerStrategy(localStrategy);
+    this.registerSsoStrategy(samlStrategy);
+    this.registerSsoStrategy(oidcStrategy);
   }
 
   async onModuleInit() {
@@ -28,6 +40,14 @@ export class AuthService implements OnModuleInit {
 
   registerStrategy(strategy: LoginStrategy) {
     this.strategies.set(strategy.name, strategy);
+  }
+
+  registerSsoStrategy(strategy: SsoLoginStrategy) {
+    this.ssoStrategies.set(strategy.name, strategy);
+  }
+
+  getSsoStrategies(): Map<string, SsoLoginStrategy> {
+    return this.ssoStrategies;
   }
 
   async login(strategyName: string, credentials: Record<string, any>) {
@@ -58,6 +78,84 @@ export class AuthService implements OnModuleInit {
     const tokens = await this.generateTokens(storedToken.user);
     await storedToken.remove();
     return tokens;
+  }
+
+  // --- SSO Methods ---
+
+  async getSsoAuthorizationUrl(configId: string): Promise<{ url: string }> {
+    const config = await SsoConfig.findOneBy({ id: configId });
+    if (!config || !config.enabled) {
+      throw new NotFoundException('SSO configuration not found or disabled');
+    }
+
+    const strategy = this.ssoStrategies.get(config.type);
+    if (!strategy) {
+      throw new BadRequestException(`SSO type '${config.type}' is not supported`);
+    }
+
+    const state = crypto.randomBytes(16).toString('hex');
+    const url = strategy.getAuthorizationUrl(config, state);
+
+    // Store state for callback verification (in-memory, could use Redis)
+    // For simplicity, encode configId in state
+    const stateWithConfig = Buffer.from(JSON.stringify({ state, configId })).toString('base64url');
+    const finalUrl = strategy.getAuthorizationUrl(config, stateWithConfig);
+
+    return { url: finalUrl };
+  }
+
+  async handleSsoCallback(configId: string, query: Record<string, any>): Promise<{ accessToken: string; refreshToken: string }> {
+    const config = await SsoConfig.findOneBy({ id: configId });
+    if (!config || !config.enabled) {
+      throw new NotFoundException('SSO configuration not found or disabled');
+    }
+
+    const strategy = this.ssoStrategies.get(config.type);
+    if (!strategy) {
+      throw new BadRequestException(`SSO type '${config.type}' is not supported`);
+    }
+
+    let identity: SsoIdentity;
+
+    if (config.type === 'oidc') {
+      // OIDC callback with authorization code
+      const code = query.code;
+      if (!code) {
+        throw new BadRequestException('Missing authorization code');
+      }
+      identity = await (this.oidcStrategy as OidcStrategy).handleCallback(config, code);
+    } else if (config.type === 'saml') {
+      // SAML callback with SAMLResponse
+      // In a full implementation, this would verify the SAML assertion
+      const samlResponse = query.SAMLResponse;
+      if (!samlResponse) {
+        throw new BadRequestException('Missing SAML response');
+      }
+      // For now, parse basic attributes from the query
+      identity = {
+        externalId: query.nameid || query.subject,
+        email: query.email,
+        attributes: query,
+      };
+    } else {
+      throw new BadRequestException('Unsupported SSO type');
+    }
+
+    const result = await strategy.authenticate(config, identity);
+    if (!result.user) {
+      throw new UnauthorizedException(result.error || 'SSO authentication failed');
+    }
+
+    return this.generateTokens(result.user);
+  }
+
+  async getSsoProviders(): Promise<Array<{ id: string; name: string; type: string }>> {
+    const configs = await this.ssoService.getActiveConfigs();
+    return configs.map((c) => ({
+      id: c.id,
+      name: c.name,
+      type: c.type,
+    }));
   }
 
   private async generateTokens(user: User) {

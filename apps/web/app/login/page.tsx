@@ -1,18 +1,63 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { setTokens } from '../../lib/auth';
-import { Lock, User, Eye, EyeOff, ShieldCheck } from 'lucide-react';
+import { Lock, User, Eye, EyeOff, ShieldCheck, LogIn } from 'lucide-react';
 import api from '../../lib/api';
 
-export default function LoginPage() {
+interface SsoProvider {
+  id: string;
+  name: string;
+  type: string;
+}
+
+function LoginForm() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [ssoProviders, setSsoProviders] = useState<SsoProvider[]>([]);
+  const [ssoLoading, setSsoLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Handle SSO callback redirect
+  useEffect(() => {
+    const ssoAccessToken = searchParams.get('sso_access_token');
+    const ssoRefreshToken = searchParams.get('sso_refresh_token');
+    const ssoError = searchParams.get('sso_error');
+
+    if (ssoError) {
+      setError(decodeURIComponent(ssoError));
+      router.replace('/login');
+      return;
+    }
+
+    if (ssoAccessToken && ssoRefreshToken) {
+      setTokens({
+        accessToken: ssoAccessToken,
+        refreshToken: ssoRefreshToken,
+      });
+      router.push('/');
+      router.refresh();
+      return;
+    }
+  }, [searchParams, router]);
+
+  // Fetch SSO providers
+  useEffect(() => {
+    const fetchSsoProviders = async () => {
+      try {
+        const data: any = await api.get('auth/sso/providers').json();
+        setSsoProviders(data);
+      } catch (err) {
+        // SSO might not be configured - that's fine
+      }
+    };
+    fetchSsoProviders();
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,6 +84,23 @@ export default function LoginPage() {
     }
   };
 
+  const handleSsoLogin = async (provider: SsoProvider) => {
+    setSsoLoading(true);
+    setError('');
+    try {
+      const data: any = await api.get(`auth/sso/authorize/${provider.id}`).json();
+      window.location.href = data.url;
+    } catch (err: any) {
+      if (err.response) {
+        const data = await err.response.json();
+        setError(data.message || 'Failed to initiate SSO login');
+      } else {
+        setError('Failed to initiate SSO login');
+      }
+      setSsoLoading(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 flex items-center justify-center p-6 bg-[#020617] overflow-hidden">
       {/* Dynamic Background Elements */}
@@ -59,6 +121,29 @@ export default function LoginPage() {
             <h1 className="text-3xl font-bold text-white tracking-tight">Seethrough</h1>
             <p className="text-slate-400 mt-2">Kubernetes Monitoring System</p>
           </div>
+
+          {/* SSO Buttons */}
+          {ssoProviders.length > 0 && (
+            <div className="mb-6 space-y-3">
+              <p className="text-xs text-slate-500 text-center uppercase tracking-widest">Single Sign-On</p>
+              {ssoProviders.map((provider) => (
+                <button
+                  key={provider.id}
+                  onClick={() => handleSsoLogin(provider)}
+                  disabled={ssoLoading}
+                  className="w-full flex items-center justify-center gap-3 py-3 px-4 bg-white/5 border border-white/10 hover:bg-white/10 text-white font-medium rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <LogIn size={18} className="text-slate-400" />
+                  Sign in with {provider.name}
+                </button>
+              ))}
+              <div className="flex items-center gap-3 py-2">
+                <div className="flex-1 h-px bg-slate-800" />
+                <span className="text-xs text-slate-600 uppercase">or</span>
+                <div className="flex-1 h-px bg-slate-800" />
+              </div>
+            </div>
+          )}
 
           <form onSubmit={handleLogin} className="space-y-6">
             <div className="space-y-2">
@@ -129,11 +214,19 @@ export default function LoginPage() {
 
           <div className="mt-8 pt-6 border-t border-slate-800 text-center">
             <p className="text-sm text-slate-500">
-              Admin-only system. Contact your administrator if you need access.
+              Contact your administrator if you need access.
             </p>
           </div>
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   );
 }

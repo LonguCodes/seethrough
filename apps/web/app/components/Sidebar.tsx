@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Layers, Settings, Activity, Server, Box, Cpu, HardDrive, Users } from 'lucide-react';
+import { LayoutDashboard, Layers, Settings, Activity, Server, Box, Cpu, HardDrive, Users, Shield } from 'lucide-react';
 
 const MENU_ITEMS = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/' },
@@ -10,6 +10,7 @@ const MENU_ITEMS = [
   { icon: HardDrive, label: 'Volumes', href: '/volumes' },
   { icon: Activity, label: 'Alert Rules', href: '/alerts' },
   { icon: Users, label: 'Users', href: '/users' },
+  { icon: Shield, label: 'SSO', href: '/sso' },
 ];
 
 export default function Sidebar() {
