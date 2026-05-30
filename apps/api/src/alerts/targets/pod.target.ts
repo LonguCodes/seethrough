@@ -14,7 +14,7 @@ export class PodTarget implements AlertTarget {
     label: 'Pod Status',
     type: 'enum',
     enumValues: ['Running', 'Pending', 'Succeeded', 'Failed', 'Unknown', 'CrashLoopBackOff', 'ImagePullBackOff', 'ErrImagePull', 'OOMKilled', 'Completed'],
-    description: 'The current status of the pod',
+    description: 'The current phase of the pod',
     supportedConditionTypes: ['eq', 'neq', 'in'],
     getValue: (data: PodInfoData) => data.status ?? '',
   })
@@ -24,11 +24,45 @@ export class PodTarget implements AlertTarget {
     name: 'restartCount',
     label: 'Restart Count',
     type: 'number',
-    description: 'Number of container restarts',
+    description: 'Total number of container restarts across all containers',
     supportedConditionTypes: ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'range'],
-    getValue: (data: PodInfoData) => data.restartCount ?? 0,
+    getValue: (data: PodInfoData) => {
+      if (data.containerStatuses?.length) {
+        return data.containerStatuses.reduce((sum, cs) => sum + cs.restartCount, 0);
+      }
+      return data.restartCount ?? 0;
+    },
   })
   restartCount: number;
+
+  @TriggerProperty<PodInfoData>({
+    name: 'containerReady',
+    label: 'Containers Ready',
+    type: 'number',
+    description: 'Number of containers that are ready',
+    supportedConditionTypes: ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'range'],
+    getValue: (data: PodInfoData) => {
+      const statuses = data.containerStatuses || [];
+      return statuses.filter(cs => cs.ready).length;
+    },
+  })
+  containerReady: number;
+
+  @TriggerProperty<PodInfoData>({
+    name: 'containerReadyRatio',
+    label: 'Container Ready Ratio',
+    type: 'number',
+    unit: '%',
+    description: 'Percentage of containers that are ready',
+    supportedConditionTypes: ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'range'],
+    getValue: (data: PodInfoData) => {
+      const statuses = data.containerStatuses || [];
+      if (statuses.length === 0) return 100;
+      const ready = statuses.filter(cs => cs.ready).length;
+      return (ready / statuses.length) * 100;
+    },
+  })
+  containerReadyRatio: number;
 
   @TriggerProperty<PodInfoData>({
     name: 'age',

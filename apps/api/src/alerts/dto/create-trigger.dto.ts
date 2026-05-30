@@ -1,4 +1,4 @@
-import { IsString, IsEnum, IsOptional, IsBoolean, IsNumber, IsObject, Min } from 'class-validator';
+import { IsString, IsEnum, IsOptional, IsBoolean, IsNumber, IsObject, IsArray, Min } from 'class-validator';
 import { AlertScope } from '../alert.enums.js';
 
 export class CreateTriggerDto {
@@ -50,6 +50,11 @@ export class CreateTriggerDto {
   @IsNumber()
   @Min(0)
   noRetriggerSeconds?: number;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  integrationIds?: string[];
 }
 
 export class UpdateTriggerDto {
@@ -107,4 +112,9 @@ export class UpdateTriggerDto {
   @IsNumber()
   @Min(0)
   noRetriggerSeconds?: number;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  integrationIds?: string[];
 }

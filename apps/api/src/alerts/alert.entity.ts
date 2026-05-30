@@ -1,9 +1,9 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn, BaseEntity } from 'typeorm';
 import { AlertTrigger } from './alert-trigger.entity.js';
 import { AlertSeverity, AlertStatus } from './alert.enums.js';
 
 @Entity('alerts')
-export class Alert {
+export class Alert extends BaseEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 

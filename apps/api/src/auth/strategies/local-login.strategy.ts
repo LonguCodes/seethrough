@@ -1,6 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import bcrypt from 'bcrypt';
 import { User } from '../entities/user.entity.js';
 import { LoginStrategy } from './login-strategy.interface.js';
@@ -9,22 +7,17 @@ import { LoginStrategy } from './login-strategy.interface.js';
 export class LocalLoginStrategy implements LoginStrategy {
   name = 'local';
 
-  constructor(
-    @InjectRepository(User)
-    private readonly userRepository: Repository<User>,
-  ) {}
-
   async authenticate(credentials: Record<string, any>): Promise<User | null> {
     const { username, password } = credentials;
     if (!username || !password) return null;
 
-    const user = await this.userRepository.findOne({
+    const user = await User.findOne({
       where: { username },
-      select: ['id', 'username', 'password', 'role'], // Include password for validation
+      select: ['id', 'username', 'password', 'role'],
     });
 
     if (user && await bcrypt.compare(password, user.password)) {
-      const { password, ...result } = user;
+      const { password: _, ...result } = user;
       return result as User;
     }
 

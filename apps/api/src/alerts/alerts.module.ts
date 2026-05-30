@@ -10,12 +10,18 @@ import { MetricsModule } from '../metrics/metrics.module.js';
 import { NodeTarget } from './targets/node.target.js';
 import { PodTarget } from './targets/pod.target.js';
 import { PvcTarget } from './targets/pvc.target.js';
+import { DeploymentTarget } from './targets/deployment.target.js';
+import { StatefulSetTarget } from './targets/statefulset.target.js';
+import { DaemonSetTarget } from './targets/daemonset.target.js';
 import { TargetRegistry } from './targets/target.registry.js';
 import { ConditionEvaluator } from './evaluators/condition-evaluator.service.js';
+import { AlertIntegration } from './integrations/integration.entity.js';
+import { TriggerIntegration } from './integrations/trigger-integration.entity.js';
+import { IntegrationService } from './integrations/integration.service.js';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([AlertTrigger, Alert]),
+    TypeOrmModule.forFeature([AlertTrigger, Alert, AlertIntegration, TriggerIntegration]),
     ClusterModule,
     MetricsModule,
   ],
@@ -25,16 +31,20 @@ import { ConditionEvaluator } from './evaluators/condition-evaluator.service.js'
     NodeTarget,
     PodTarget,
     PvcTarget,
+    DeploymentTarget,
+    StatefulSetTarget,
+    DaemonSetTarget,
     ConditionEvaluator,
+    IntegrationService,
     {
       provide: TargetRegistry,
-      useFactory: (nodeTarget: NodeTarget, podTarget: PodTarget, pvcTarget: PvcTarget) => {
-        return new TargetRegistry([nodeTarget, podTarget, pvcTarget]);
+      useFactory: (nodeTarget: NodeTarget, podTarget: PodTarget, pvcTarget: PvcTarget, deploymentTarget: DeploymentTarget, statefulSetTarget: StatefulSetTarget, daemonSetTarget: DaemonSetTarget) => {
+        return new TargetRegistry([nodeTarget, podTarget, pvcTarget, deploymentTarget, statefulSetTarget, daemonSetTarget]);
       },
-      inject: [NodeTarget, PodTarget, PvcTarget],
+      inject: [NodeTarget, PodTarget, PvcTarget, DeploymentTarget, StatefulSetTarget, DaemonSetTarget],
     },
   ],
   controllers: [AlertsController],
-  exports: [AlertsService],
+  exports: [AlertsService, IntegrationService],
 })
 export class AlertsModule { }
