@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn, BaseEntity } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn, BaseEntity, type Relation } from 'typeorm';
 import { AlertTrigger } from '../alert-trigger.entity.js';
 import { AlertIntegration } from './integration.entity.js';
 
@@ -12,14 +12,14 @@ export class TriggerIntegration extends BaseEntity {
 
   @ManyToOne(() => AlertTrigger, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'triggerId' })
-  trigger: AlertTrigger;
+  trigger: Relation<AlertTrigger>;
 
   @Column()
   integrationId: string;
 
   @ManyToOne(() => AlertIntegration, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'integrationId' })
-  integration: AlertIntegration;
+  integration: Relation<AlertIntegration>;
 
   @CreateDateColumn()
   createdAt: Date;

@@ -1,0 +1,27 @@
+# Cline Rules for SeeThrough Project
+
+## TypeORM Entity Relations
+
+Every TypeORM entity relation field decorated with @ManyToOne, @OneToMany, @OneToOne, or @ManyToMany MUST use the `Relation<T>` wrapper type from `typeorm` instead of just `T`, where `T` is the relation entity type.
+
+```typescript
+// CORRECT
+import { type Relation } from 'typeorm';
+
+@ManyToOne(() => User, (user) => user.sessions, { onDelete: 'CASCADE' })
+user: Relation<User>;
+
+@OneToMany(() => Session, (session) => session.user)
+sessions: Relation<Session[]>;
+```
+
+```typescript
+// WRONG - do NOT do this
+@ManyToOne(() => User, (user) => user.sessions, { onDelete: 'CASCADE' })
+user: User;
+
+@OneToMany(() => Session, (session) => session.user)
+sessions: Session[];
+```
+
+This ensures proper type safety when working with TypeORM's lazy/loaded relations.
