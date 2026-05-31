@@ -1,4 +1,13 @@
-import { Injectable, UnauthorizedException, Inject, OnModuleInit, ConflictException, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  Inject,
+  OnModuleInit,
+  ConflictException,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
@@ -6,6 +15,7 @@ import { ConfigToken } from '@longucodes/config';
 import { User } from './entities/user.entity.js';
 import { Session } from './entities/session.entity.js';
 import { Invitation } from './entities/invitation.entity.js';
+import { Role } from './entities/role.entity.js';
 import { SsoConfig } from './entities/sso-config.entity.js';
 import { LoginStrategy } from './strategies/login-strategy.interface.js';
 import { LocalLoginStrategy } from './strategies/local-login.strategy.js';
@@ -13,6 +23,7 @@ import { SsoLoginStrategy } from './strategies/sso-login-strategy.interface.js';
 import { SamlStrategy } from './strategies/saml.strategy.js';
 import { OidcStrategy } from './strategies/oidc.strategy.js';
 import { SsoService } from './sso.service.js';
+import { DEFAULT_ROLES, ALL_PERMISSIONS } from './permissions.js';
 import type { AppConfig } from '../config/app.config.js';
 import type { SsoIdentity } from './auth.service.types.js';
 
@@ -35,8 +46,83 @@ export class AuthService implements OnModuleInit {
   }
 
   async onModuleInit() {
+    await this.provisionDefaultRoles();
     await this.provisionDefaultUser();
   }
+
+  // --- Role Management ---
+
+  private async provisionDefaultRoles() {
+    const roleCount = await Role.count();
+    if (roleCount > 0) return;
+
+    for (const def of DEFAULT_ROLES) {
+      const role = Role.create({
+        name: def.name,
+        superadmin: def.superadmin,
+        permissions: def.permissions as string[],
+      });
+      await role.save();
+      console.log(`Provisioned default role: ${def.name}`);
+    }
+  }
+
+  async findAllRoles(): Promise<Role[]> {
+    return Role.find();
+  }
+
+  async findRoleByName(name: string): Promise<Role | null> {
+    return Role.findOneBy({ name });
+  }
+
+  async createRole(name: string, superadmin: boolean, permissions: string[]): Promise<Role> {
+    const existing = await Role.findOneBy({ name });
+    if (existing) {
+      throw new ConflictException(`Role "${name}" already exists`);
+    }
+    const role = Role.create({ name, superadmin, permissions });
+    return role.save();
+  }
+
+  async updateRole(
+    id: string,
+    updates: { name?: string; superadmin?: boolean; permissions?: string[] },
+  ): Promise<Role> {
+    const role = await Role.findOneBy({ id });
+    if (!role) {
+      throw new NotFoundException('Role not found');
+    }
+    if (updates.name !== undefined) {
+      const existing = await Role.findOneBy({ name: updates.name });
+      if (existing && existing.id !== id) {
+        throw new ConflictException(`Role "${updates.name}" already exists`);
+      }
+      role.name = updates.name;
+    }
+    if (updates.superadmin !== undefined) {
+      role.superadmin = updates.superadmin;
+    }
+    if (updates.permissions !== undefined) {
+      role.permissions = updates.permissions;
+    }
+    return role.save();
+  }
+
+  async deleteRole(id: string): Promise<void> {
+    const role = await Role.findOneBy({ id });
+    if (!role) {
+      throw new NotFoundException('Role not found');
+    }
+    const usersWithRole = await User.count({ where: { role: { id } } });
+    if (usersWithRole > 0) {
+      throw new ConflictException(
+        `Cannot delete role "${role.name}" because ${usersWithRole} user(s) are assigned to it`,
+      );
+    }
+    await role.remove();
+  }
+
+  // --- Auth Strategies ---
 
   registerStrategy(strategy: LoginStrategy) {
     this.strategies.set(strategy.name, strategy);
@@ -94,17 +180,18 @@ export class AuthService implements OnModuleInit {
     }
 
     const state = crypto.randomBytes(16).toString('hex');
-    const url = strategy.getAuthorizationUrl(config, state);
+    const stateWithConfig = Buffer.from(JSON.stringify({ state, configId })).toString(
+      'base64url',
+    );
+    const url = strategy.getAuthorizationUrl(config, stateWithConfig);
 
-    // Store state for callback verification (in-memory, could use Redis)
-    // For simplicity, encode configId in state
-    const stateWithConfig = Buffer.from(JSON.stringify({ state, configId })).toString('base64url');
-    const finalUrl = strategy.getAuthorizationUrl(config, stateWithConfig);
-
-    return { url: finalUrl };
+    return { url };
   }
 
-  async handleSsoCallback(configId: string, query: Record<string, any>): Promise<{ accessToken: string; refreshToken: string }> {
+  async handleSsoCallback(
+    configId: string,
+    query: Record<string, any>,
+  ): Promise<{ accessToken: string; refreshToken: string }> {
     const config = await SsoConfig.findOneBy({ id: configId });
     if (!config || !config.enabled) {
       throw new NotFoundException('SSO configuration not found or disabled');
@@ -118,20 +205,19 @@ export class AuthService implements OnModuleInit {
     let identity: SsoIdentity;
 
     if (config.type === 'oidc') {
-      // OIDC callback with authorization code
       const code = query.code;
       if (!code) {
         throw new BadRequestException('Missing authorization code');
       }
-      identity = await (this.oidcStrategy as OidcStrategy).handleCallback(config, code);
+      identity = await (this.oidcStrategy as OidcStrategy).handleCallback(
+        config,
+        code,
+      );
     } else if (config.type === 'saml') {
-      // SAML callback with SAMLResponse
-      // In a full implementation, this would verify the SAML assertion
       const samlResponse = query.SAMLResponse;
       if (!samlResponse) {
         throw new BadRequestException('Missing SAML response');
       }
-      // For now, parse basic attributes from the query
       identity = {
         externalId: query.nameid || query.subject,
         email: query.email,
@@ -158,8 +244,21 @@ export class AuthService implements OnModuleInit {
     }));
   }
 
+  // --- Token Generation ---
+
   private async generateTokens(user: User) {
-    const payload = { sub: user.id, username: user.username, role: user.role };
+    // Resolve the effective permissions: if superadmin, include all permissions
+    const role = await Role.findOneBy({ name: user.role?.name });
+    const permissions: string[] = role?.superadmin
+      ? [...ALL_PERMISSIONS]
+      : (role?.permissions ?? []);
+
+    const payload = {
+      sub: user.id,
+      username: user.username,
+      role: user.role?.name,
+      permissions,
+    };
 
     const accessToken = this.jwtService.sign(payload, { expiresIn: '30m' });
     const refreshTokenValue = this.jwtService.sign(payload, { expiresIn: '14d' });
@@ -177,39 +276,65 @@ export class AuthService implements OnModuleInit {
     };
   }
 
+  // --- Default User Provisioning ---
+
   private async provisionDefaultUser() {
     const userCount = await User.count();
     if (userCount === 0) {
+      const superadminRole = await Role.findOneBy({ name: 'superadmin' });
+      if (!superadminRole) {
+        console.warn('No superadmin role found, cannot provision default user');
+        return;
+      }
+
       const hashedPassword = await bcrypt.hash(this.config.defaultAdmin.password, 10);
       const admin = User.create({
         username: this.config.defaultAdmin.username,
         password: hashedPassword,
-        role: 'admin',
+        role: superadminRole,
       });
       await admin.save();
-      console.log(`Provisioned default admin user: ${this.config.defaultAdmin.username}`);
+      console.log(
+        `Provisioned default admin user: ${this.config.defaultAdmin.username}`,
+      );
     }
   }
 
   async validateUser(userId: string) {
-    return User.findOneBy({ id: userId });
+    return User.findOne({ where: { id: userId }, relations: ['role'] });
   }
 
   // --- User Management ---
 
-  async findAllUsers(): Promise<Omit<User, 'password'>[]> {
-    return User.find({
-      select: ['id', 'username', 'role'],
+  async findAllUsers(): Promise<Partial<User>[]> {
+    const users = await User.find({
+      relations: ['role'],
     });
+    return users.map((u) => ({
+      id: u.id,
+      username: u.username,
+      role: u.role,
+    }));
   }
 
-  async createInvitation(username: string, role: string = 'viewer'): Promise<{ token: string; username: string; role: string; expiresAt: Date }> {
+  async createInvitation(
+    username: string,
+    roleName: string = 'viewer',
+  ): Promise<{ token: string; username: string; role: string; expiresAt: Date }> {
     const existingUser = await User.findOneBy({ username });
     if (existingUser) {
       throw new ConflictException(`User "${username}" already exists`);
     }
 
-    const existingInvitation = await Invitation.findOneBy({ username, accepted: false });
+    const role = await Role.findOneBy({ name: roleName });
+    if (!role) {
+      throw new BadRequestException(`Role "${roleName}" not found`);
+    }
+
+    const existingInvitation = await Invitation.findOneBy({
+      username,
+      accepted: false,
+    });
     if (existingInvitation) {
       await existingInvitation.remove();
     }
@@ -225,11 +350,16 @@ export class AuthService implements OnModuleInit {
     });
     await invitation.save();
 
-    return { token, username, role, expiresAt };
+    return { token, username, role: role.name, expiresAt };
   }
 
-  async getInvitation(token: string): Promise<{ username: string; role: string; expiresAt: Date }> {
-    const invitation = await Invitation.findOneBy({ token });
+  async getInvitation(
+    token: string,
+  ): Promise<{ username: string; role: string; expiresAt: Date }> {
+    const invitation = await Invitation.findOne({
+      where: { token },
+      relations: ['role'],
+    });
 
     if (!invitation) {
       throw new NotFoundException('Invitation not found');
@@ -243,11 +373,21 @@ export class AuthService implements OnModuleInit {
       throw new BadRequestException('This invitation has expired');
     }
 
-    return { username: invitation.username, role: invitation.role, expiresAt: invitation.expiresAt };
+    return {
+      username: invitation.username,
+      role: invitation.role.name,
+      expiresAt: invitation.expiresAt,
+    };
   }
 
-  async acceptInvitation(token: string, password: string): Promise<Omit<User, 'password'>> {
-    const invitation = await Invitation.findOneBy({ token });
+  async acceptInvitation(
+    token: string,
+    password: string,
+  ): Promise<Partial<User>> {
+    const invitation = await Invitation.findOne({
+      where: { token },
+      relations: ['role'],
+    });
 
     if (!invitation) {
       throw new NotFoundException('Invitation not found');
@@ -277,18 +417,29 @@ export class AuthService implements OnModuleInit {
     invitation.accepted = true;
     await invitation.save();
 
-    return { id: saved.id, username: saved.username, role: saved.role } as User;
+    return { id: saved.id, username: saved.username, role: saved.role };
   }
 
-  async updateUserRole(userId: string, role: string): Promise<Omit<User, 'password'>> {
-    const user = await User.findOneBy({ id: userId });
+  async updateUserRole(
+    userId: string,
+    roleName: string,
+  ): Promise<Partial<User>> {
+    const user = await User.findOne({
+      where: { id: userId },
+      relations: ['role'],
+    });
     if (!user) {
       throw new NotFoundException(`User not found`);
     }
 
+    const role = await Role.findOneBy({ name: roleName });
+    if (!role) {
+      throw new BadRequestException(`Role "${roleName}" not found`);
+    }
+
     user.role = role;
     const saved = await user.save();
-    return { id: saved.id, username: saved.username, role: saved.role } as User;
+    return { id: saved.id, username: saved.username, role: saved.role };
   }
 
   async deleteUser(userId: string, requestingUserId: string): Promise<void> {

@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { setTokens } from '../../lib/auth';
+import { useAuth } from '../../lib/use-auth';
 import { Lock, User, Eye, EyeOff, ShieldCheck, LogIn } from 'lucide-react';
 import api from '../../lib/api';
 
@@ -22,6 +23,7 @@ function LoginForm() {
   const [ssoLoading, setSsoLoading] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { refresh } = useAuth();
 
   // Handle SSO callback redirect
   useEffect(() => {
@@ -40,11 +42,12 @@ function LoginForm() {
         accessToken: ssoAccessToken,
         refreshToken: ssoRefreshToken,
       });
+      refresh();
       router.push('/');
       router.refresh();
       return;
     }
-  }, [searchParams, router]);
+  }, [searchParams, router, refresh]);
 
   // Fetch SSO providers
   useEffect(() => {
@@ -70,6 +73,7 @@ function LoginForm() {
       }).json();
 
       setTokens(data);
+      refresh();
       router.push('/');
       router.refresh();
     } catch (err: any) {

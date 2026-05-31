@@ -18,6 +18,7 @@ export const metadata: Metadata = {
 
 import Sidebar from "./components/Sidebar";
 import MainContent from "./components/MainContent";
+import { ClientLayout } from "./components/ClientLayout";
 
 export default function RootLayout({
   children,
@@ -27,10 +28,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} flex min-h-screen bg-[#020617]`}>
-        <Sidebar />
-        <MainContent>
-          {children}
-        </MainContent>
+        <ClientLayout>
+          <Sidebar />
+          <MainContent>
+            {children}
+          </MainContent>
+        </ClientLayout>
       </body>
     </html>
   );

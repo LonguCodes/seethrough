@@ -1,4 +1,13 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, BaseEntity } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  CreateDateColumn,
+  BaseEntity,
+  type Relation,
+} from 'typeorm';
+import { Role } from './role.entity.js';
 
 @Entity('invitations')
 export class Invitation extends BaseEntity {
@@ -11,8 +20,8 @@ export class Invitation extends BaseEntity {
   @Column()
   username: string;
 
-  @Column({ default: 'viewer' })
-  role: string;
+  @ManyToOne(() => Role, { eager: true, onDelete: 'RESTRICT' })
+  role: Relation<Role>;
 
   @Column()
   expiresAt: Date;

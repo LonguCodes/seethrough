@@ -1,10 +1,9 @@
-import { IsString, IsIn, IsOptional } from 'class-validator';
+import { IsString, IsOptional } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class UpdateUserDto {
-  @ApiProperty({ description: 'Updated role', enum: ['admin', 'viewer'], required: false })
+  @ApiProperty({ description: 'Role name to assign to the user', required: false })
   @IsString()
-  @IsIn(['admin', 'viewer'])
   @IsOptional()
   role?: string;
 }

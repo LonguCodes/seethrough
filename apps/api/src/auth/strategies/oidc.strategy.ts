@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { SsoConfig } from '../entities/sso-config.entity.js';
 import { User } from '../entities/user.entity.js';
+import { Role } from '../entities/role.entity.js';
 import { SsoLoginStrategy } from './sso-login-strategy.interface.js';
 import type { SsoIdentity } from '../auth.service.types.js';
 
@@ -26,10 +27,19 @@ export class OidcStrategy implements SsoLoginStrategy {
         return { user: null, error: 'User does not exist and auto-creation is disabled for this SSO configuration' };
       }
 
+      const defaultRoleName = config.defaultRole || 'viewer';
+      let role = await Role.findOneBy({ name: defaultRoleName });
+      if (!role) {
+        role = await Role.findOneBy({ name: 'viewer' });
+      }
+      if (!role) {
+        return { user: null, error: 'Default role not found' };
+      }
+
       user = User.create({
         username,
         password: '', // SSO users have no local password
-        role: config.defaultRole || 'viewer',
+        role,
       });
       await user.save();
     }

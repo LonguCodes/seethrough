@@ -1,7 +1,18 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, Request, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Body,
+  Param,
+  Request,
+  UseGuards,
+} from '@nestjs/common';
 import { AuthService } from './auth.service.js';
-import { Roles } from './decorators/roles.decorator.js';
-import { RolesGuard } from './guards/roles.guard.js';
+import { RequirePermissions } from './decorators/permissions.decorator.js';
+import { PermissionsGuard } from './guards/permissions.guard.js';
+import { PERMISSIONS } from './permissions.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
 import { UpdateUserDto } from './dto/update-user.dto.js';
 import { AcceptInvitationDto } from './dto/accept-invitation.dto.js';
@@ -12,15 +23,15 @@ export class UsersController {
   constructor(private readonly authService: AuthService) {}
 
   @Get()
-  @UseGuards(RolesGuard)
-  @Roles('admin')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.USERS_VIEW)
   async findAll() {
     return this.authService.findAllUsers();
   }
 
   @Post()
-  @UseGuards(RolesGuard)
-  @Roles('admin')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.USERS_MANAGE)
   async create(@Body() createUserDto: CreateUserDto) {
     return this.authService.createInvitation(
       createUserDto.username,
@@ -29,15 +40,15 @@ export class UsersController {
   }
 
   @Patch(':id')
-  @UseGuards(RolesGuard)
-  @Roles('admin')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.USERS_MANAGE)
   async updateRole(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
     return this.authService.updateUserRole(id, updateUserDto.role!);
   }
 
   @Delete(':id')
-  @UseGuards(RolesGuard)
-  @Roles('admin')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.USERS_MANAGE)
   async remove(@Param('id') id: string, @Request() req: any) {
     await this.authService.deleteUser(id, req.user.id);
     return { message: 'User deleted' };

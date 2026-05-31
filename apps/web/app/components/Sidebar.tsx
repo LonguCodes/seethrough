@@ -3,8 +3,10 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LayoutDashboard, Layers, Settings, Activity, Server, Box, Cpu, HardDrive, Users, Shield } from 'lucide-react';
+import { useAuth } from '../../lib/use-auth';
+import { hasPermission, PERMISSIONS, NAV_PERMISSION_MAP } from '../../lib/permissions';
 
-const MENU_ITEMS = [
+const ALL_MENU_ITEMS = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/' },
   { icon: Layers, label: 'Cluster View', href: '/cluster' },
   { icon: HardDrive, label: 'Volumes', href: '/volumes' },
@@ -15,7 +17,18 @@ const MENU_ITEMS = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const { user } = useAuth();
+
+  console.log(user)
+
   if (pathname === '/login' || pathname.startsWith('/invite/')) return null;
+
+  // Filter menu items based on user permissions
+  const visibleItems = ALL_MENU_ITEMS.filter((item) => {
+    const requiredPerms = NAV_PERMISSION_MAP[item.href];
+    if (!requiredPerms) return true;
+    return requiredPerms.some((perm) => hasPermission(user, perm));
+  });
 
   return (
     <aside className="fixed left-0 top-0 h-screen w-72 glass border-r border-white/5 flex flex-col z-50">
@@ -28,7 +41,7 @@ export default function Sidebar() {
 
       <nav className="flex-1 px-4 space-y-2">
         <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-4 px-4">Management</div>
-        {MENU_ITEMS.map((item) => {
+        {visibleItems.map((item) => {
           const isActive = pathname === item.href;
           const Icon = item.icon;
 
@@ -37,14 +50,14 @@ export default function Sidebar() {
               key={item.href}
               href={item.href}
               className={`flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group ${
-                isActive 
-                  ? 'bg-[var(--accent)]/10 text-[var(--accent)] shadow-[inset_0_0_20px_rgba(var(--accent-rgb),0.05)]' 
+                isActive
+                  ? 'bg-[var(--accent)]/10 text-[var(--accent)] shadow-[inset_0_0_20px_rgba(var(--accent-rgb),0.05)]'
                   : 'text-slate-400 hover:text-white hover:bg-white/5'
               }`}
             >
-              <Icon 
-                size={20} 
-                className={`transition-colors ${isActive ? 'text-[var(--accent)]' : 'group-hover:text-white'}`} 
+              <Icon
+                size={20}
+                className={`transition-colors ${isActive ? 'text-[var(--accent)]' : 'group-hover:text-white'}`}
               />
               <span className="font-medium">{item.label}</span>
               {isActive && (

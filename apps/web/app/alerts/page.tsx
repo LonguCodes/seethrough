@@ -56,10 +56,15 @@ interface AlertIntegration {
 }
 
 import api from '../../lib/api';
+import { useAuth } from '../../lib/use-auth';
+import { hasPermission, PERMISSIONS } from '../../lib/permissions';
 
 type Tab = 'triggers' | 'integrations';
 
 export default function AlertsConfiguration() {
+  const { user } = useAuth();
+  const canConfigureAlerts = hasPermission(user, PERMISSIONS.ALERTS_CONFIGURE);
+  const canManageIntegrations = hasPermission(user, PERMISSIONS.INTEGRATIONS_MANAGE);
   const [activeTab, setActiveTab] = useState<Tab>('triggers');
 
   // Shared state
@@ -374,13 +379,15 @@ export default function AlertsConfiguration() {
       {/* ===================== TRIGGERS TAB ===================== */}
       {activeTab === 'triggers' && (
         <>
-          <div className="flex justify-end mb-6">
-            <button onClick={() => setShowForm(!showForm)}
-              className="flex items-center gap-2 text-sm text-white bg-[var(--accent)] hover:opacity-90 transition-opacity px-4 py-2 rounded-xl">
-              <Plus size={18} />
-              New Alert Trigger
-            </button>
-          </div>
+          {canConfigureAlerts && (
+            <div className="flex justify-end mb-6">
+              <button onClick={() => setShowForm(!showForm)}
+                className="flex items-center gap-2 text-sm text-white bg-[var(--accent)] hover:opacity-90 transition-opacity px-4 py-2 rounded-xl">
+                <Plus size={18} />
+                New Alert Trigger
+              </button>
+            </div>
+          )}
 
           {showForm && (
             <section className="mb-12 glass p-8 rounded-3xl animate-in fade-in slide-in-from-top-4 duration-300">
@@ -566,17 +573,19 @@ export default function AlertsConfiguration() {
                             {trigger.scopeValue && <span className="opacity-80">({trigger.scopeValue})</span>}
                           </p>
                         </div>
-                        <div className="flex gap-2">
-                          <button onClick={() => toggleTrigger(trigger.id, trigger.enabled)}
-                            title={trigger.enabled ? "Disable Alert" : "Enable Alert"}
-                            className={`p-2 rounded-xl transition-colors ${trigger.enabled ? 'bg-[var(--success-glow)] text-[var(--success)] hover:bg-[var(--success)]/30' : 'bg-white/5 text-slate-400 hover:text-white'}`}>
-                            {trigger.enabled ? <Power size={18} /> : <PowerOff size={18} />}
-                          </button>
-                          <button onClick={() => deleteTrigger(trigger.id)} title="Delete Alert"
-                            className="p-2 rounded-xl transition-colors bg-[var(--danger-glow)] text-[var(--danger)] hover:bg-[var(--danger)]/30">
-                            <Trash2 size={18} />
-                          </button>
-                        </div>
+                        {canConfigureAlerts && (
+                          <div className="flex gap-2">
+                            <button onClick={() => toggleTrigger(trigger.id, trigger.enabled)}
+                              title={trigger.enabled ? "Disable Alert" : "Enable Alert"}
+                              className={`p-2 rounded-xl transition-colors ${trigger.enabled ? 'bg-[var(--success-glow)] text-[var(--success)] hover:bg-[var(--success)]/30' : 'bg-white/5 text-slate-400 hover:text-white'}`}>
+                              {trigger.enabled ? <Power size={18} /> : <PowerOff size={18} />}
+                            </button>
+                            <button onClick={() => deleteTrigger(trigger.id)} title="Delete Alert"
+                              className="p-2 rounded-xl transition-colors bg-[var(--danger-glow)] text-[var(--danger)] hover:bg-[var(--danger)]/30">
+                              <Trash2 size={18} />
+                            </button>
+                          </div>
+                        )}
                       </div>
 
                       <div className="bg-white/5 rounded-xl p-4 mt-4 space-y-2">
@@ -638,13 +647,15 @@ export default function AlertsConfiguration() {
       {/* ===================== INTEGRATIONS TAB ===================== */}
       {activeTab === 'integrations' && (
         <>
-          <div className="flex justify-end mb-6">
-            <button onClick={() => setShowIntegrationForm(!showIntegrationForm)}
-              className="flex items-center gap-2 text-sm text-white bg-[var(--accent)] hover:opacity-90 transition-opacity px-4 py-2 rounded-xl">
-              <Plus size={18} />
-              New Integration
-            </button>
-          </div>
+          {canManageIntegrations && (
+            <div className="flex justify-end mb-6">
+              <button onClick={() => setShowIntegrationForm(!showIntegrationForm)}
+                className="flex items-center gap-2 text-sm text-white bg-[var(--accent)] hover:opacity-90 transition-opacity px-4 py-2 rounded-xl">
+                <Plus size={18} />
+                New Integration
+              </button>
+            </div>
+          )}
 
           {showIntegrationForm && (
             <section className="mb-12 glass p-8 rounded-3xl animate-in fade-in slide-in-from-top-4 duration-300">
@@ -743,10 +754,12 @@ export default function AlertsConfiguration() {
                           <p className="text-xs text-slate-500 capitalize">{int.type}</p>
                         </div>
                       </div>
-                      <button onClick={() => deleteIntegration(int.id)} title="Delete Integration"
-                        className="p-2 rounded-xl transition-colors bg-[var(--danger-glow)] text-[var(--danger)] hover:bg-[var(--danger)]/30">
-                        <Trash2 size={18} />
-                      </button>
+                      {canManageIntegrations && (
+                        <button onClick={() => deleteIntegration(int.id)} title="Delete Integration"
+                          className="p-2 rounded-xl transition-colors bg-[var(--danger-glow)] text-[var(--danger)] hover:bg-[var(--danger)]/30">
+                          <Trash2 size={18} />
+                        </button>
+                      )}
                     </div>
 
                     <div className="bg-white/5 rounded-xl p-4 space-y-2">

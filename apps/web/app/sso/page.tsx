@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { Shield, Plus, Settings, Trash2, ToggleLeft, ToggleRight, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import api from '../../lib/api';
+import { useAuth } from '../../lib/use-auth';
+import { hasPermission, PERMISSIONS } from '../../lib/permissions';
 
 interface SsoConfig {
   id: string;
@@ -37,6 +39,8 @@ const EMPTY_FORM = {
 };
 
 export default function SsoPage() {
+  const { user } = useAuth();
+  const canManageSso = hasPermission(user, PERMISSIONS.SSO_MANAGE);
   const [configs, setConfigs] = useState<SsoConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -181,13 +185,15 @@ export default function SsoPage() {
           <Shield size={32} className="text-[var(--accent)]" />
           <h1 className="text-4xl text-gradient">SSO Configuration</h1>
         </div>
-        <button
-          onClick={() => { setShowForm(!showForm); setEditingId(null); setForm(EMPTY_FORM); setFormError(''); }}
-          className="flex items-center gap-2 text-sm text-white bg-[var(--accent)] hover:opacity-90 transition-opacity px-4 py-2 rounded-xl"
-        >
-          <Plus size={18} />
-          Add SSO Config
-        </button>
+        {canManageSso && (
+          <button
+            onClick={() => { setShowForm(!showForm); setEditingId(null); setForm(EMPTY_FORM); setFormError(''); }}
+            className="flex items-center gap-2 text-sm text-white bg-[var(--accent)] hover:opacity-90 transition-opacity px-4 py-2 rounded-xl"
+          >
+            <Plus size={18} />
+            Add SSO Config
+          </button>
+        )}
       </header>
 
       {/* Form */}
@@ -405,17 +411,27 @@ export default function SsoPage() {
                 <div className="p-6">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                      <button
-                        onClick={() => handleToggle(config)}
-                        className="transition-colors"
-                        title={config.enabled ? 'Disable' : 'Enable'}
-                      >
-                        {config.enabled ? (
-                          <ToggleRight size={28} className="text-[var(--success)]" />
-                        ) : (
-                          <ToggleLeft size={28} className="text-slate-500" />
-                        )}
-                      </button>
+                      {canManageSso ? (
+                        <button
+                          onClick={() => handleToggle(config)}
+                          className="transition-colors"
+                          title={config.enabled ? 'Disable' : 'Enable'}
+                        >
+                          {config.enabled ? (
+                            <ToggleRight size={28} className="text-[var(--success)]" />
+                          ) : (
+                            <ToggleLeft size={28} className="text-slate-500" />
+                          )}
+                        </button>
+                      ) : (
+                        <span>
+                          {config.enabled ? (
+                            <ToggleRight size={28} className="text-[var(--success)]" />
+                          ) : (
+                            <ToggleLeft size={28} className="text-slate-500" />
+                          )}
+                        </span>
+                      )}
                       <div>
                         <div className="flex items-center gap-3">
                           <h3 className="text-lg font-semibold text-white">{config.name}</h3>
@@ -442,20 +458,24 @@ export default function SsoPage() {
                       >
                         {expandedId === config.id ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
                       </button>
-                      <button
-                        onClick={() => handleEdit(config)}
-                        className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
-                        title="Edit"
-                      >
-                        <Settings size={18} />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(config.id, config.name)}
-                        className="p-2 rounded-xl transition-colors bg-[var(--danger)]/10 text-[var(--danger)] hover:bg-[var(--danger)]/30"
-                        title="Delete"
-                      >
-                        <Trash2 size={18} />
-                      </button>
+                      {canManageSso && (
+                        <>
+                          <button
+                            onClick={() => handleEdit(config)}
+                            className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                            title="Edit"
+                          >
+                            <Settings size={18} />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(config.id, config.name)}
+                            className="p-2 rounded-xl transition-colors bg-[var(--danger)]/10 text-[var(--danger)] hover:bg-[var(--danger)]/30"
+                            title="Delete"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
