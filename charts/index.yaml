@@ -1,0 +1,15 @@
+apiVersion: v1
+entries:
+  seethrough:
+  - apiVersion: v2
+    appVersion: 1.0.0
+    created: "2026-06-01T14:29:59.240620872Z"
+    description: Lightweight Kubernetes and server monitoring software with alerting
+      built-in
+    digest: 82e53a12454f6c3435ee117867edee5528b9e8c90f4337f1283a35b27a000594
+    name: seethrough
+    type: application
+    urls:
+    - https://longucodes.github.io/seethrough/charts/seethrough-0.1.0-canary-bde81eb.tgz
+    version: 0.1.0-canary-bde81eb
+generated: "2026-06-01T14:29:59.240043656Z"
