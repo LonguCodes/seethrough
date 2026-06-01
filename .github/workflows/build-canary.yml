@@ -71,16 +71,24 @@ jobs:
 
       - name: Package Helm Chart (Canary)
         run: |
+          mkdir -p ./helm-charts/charts
           CHART_DIR="./helm/seethrough"
           CHART_VERSION=$(grep '^version:' "$CHART_DIR/Chart.yaml" | awk '{print $2}')
           CANARY_VERSION="${CHART_VERSION}-canary-${GITHUB_SHA::7}"
           sed -i "s/^version:.*/version: ${CANARY_VERSION}/" "$CHART_DIR/Chart.yaml"
-          helm package "$CHART_DIR" --destination ./helm-charts
+          helm package "$CHART_DIR" --destination ./helm-charts/charts
+
+#      - name: Copy Root index.html
+#        run: |
+#          cp ./helm/index.html ./helm-charts/index.html
+
+      - name: Generate Helm Repo Index
+        run: |
+          helm repo index ./helm-charts/charts --url https://longucodes.github.io/seethrough/charts
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./helm-charts
-          destination_dir: charts
           keep_files: true
