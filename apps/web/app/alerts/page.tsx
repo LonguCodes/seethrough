@@ -3,28 +3,10 @@
 import { useEffect, useState } from 'react';
 import { Settings, Plus, Trash2, Power, PowerOff, Activity, Bell, MessageSquare, Webhook } from 'lucide-react';
 
-// === ConditionValue types ===
 interface SingleConditionValue { value: number | string; }
 interface RangeConditionValue { min: number; max: number; }
 interface InConditionValue { values: (number | string)[]; }
 type ConditionValue = SingleConditionValue | RangeConditionValue | InConditionValue;
-
-interface TargetProperty {
-  propertyKey: string;
-  name: string;
-  label: string;
-  type: 'number' | 'string' | 'enum';
-  enumValues?: string[];
-  unit?: string;
-  description?: string;
-  supportedConditionTypes: string[];
-}
-
-interface TargetSchema {
-  type: string;
-  label: string;
-  properties: TargetProperty[];
-}
 
 interface AlertTrigger {
   id: string;
@@ -58,22 +40,30 @@ interface AlertIntegration {
 import api from '../../lib/api';
 import { useAuth } from '../../lib/use-auth';
 import { hasPermission, PERMISSIONS } from '../../lib/permissions';
+import { useRequirePermission } from '../../lib/use-require-permission';
+import PageLoading from '../components/PageLoading';
+import AccessDenied from '../components/AccessDenied';
+import AlertTriggerForm from './AlertTriggerForm';
+import IntegrationForm from './IntegrationForm';
 
 type Tab = 'triggers' | 'integrations';
 
 export default function AlertsConfiguration() {
+  const { authorized, loading: authLoading } = useRequirePermission(PERMISSIONS.ALERTS_VIEW);
   const { user } = useAuth();
   const canConfigureAlerts = hasPermission(user, PERMISSIONS.ALERTS_CONFIGURE);
   const canManageIntegrations = hasPermission(user, PERMISSIONS.INTEGRATIONS_MANAGE);
   const [activeTab, setActiveTab] = useState<Tab>('triggers');
 
-  // Shared state
-  const [targets, setTargets] = useState<TargetSchema[]>([]);
+  const [targets, setTargets] = useState<any[]>([]);
   const [triggers, setTriggers] = useState<AlertTrigger[]>([]);
   const [integrations, setIntegrations] = useState<AlertIntegration[]>([]);
   const [loading, setLoading] = useState(true);
   const [clusterInfo, setClusterInfo] = useState<{ nodes: any[], namespaces: any[], pods: any[], pvcs: any[] }>({ nodes: [], namespaces: [], pods: [], pvcs: [] });
   const [latestMetrics, setLatestMetrics] = useState<any[]>([]);
+
+  const [showForm, setShowForm] = useState(false);
+  const [showIntegrationForm, setShowIntegrationForm] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -101,169 +91,6 @@ export default function AlertsConfiguration() {
     }
   };
 
-  // ===================== TRIGGER FORM STATE =====================
-  const [showForm, setShowForm] = useState(false);
-  const [name, setName] = useState('');
-  const [targetType, setTargetType] = useState('');
-  const [targetProperty, setTargetProperty] = useState('');
-  const [conditionType, setConditionType] = useState('');
-  const [conditionValue, setConditionValue] = useState<ConditionValue | null>(null);
-  const [scope, setScope] = useState('');
-  const [scopeValue, setScopeValue] = useState('');
-  const [messageTemplate, setMessageTemplate] = useState('');
-  const [lookbackSeconds, setLookbackSeconds] = useState(0);
-  const [autoResolveEnabled, setAutoResolveEnabled] = useState(true);
-  const [autoResolveLookbackSeconds, setAutoResolveLookbackSeconds] = useState(0);
-  const [noRetriggerSeconds, setNoRetriggerSeconds] = useState(0);
-  const [selectedIntegrationIds, setSelectedIntegrationIds] = useState<string[]>([]);
-
-  const [selectedTarget, setSelectedTarget] = useState<TargetSchema | null>(null);
-  const [selectedProperty, setSelectedProperty] = useState<TargetProperty | null>(null);
-
-  const handleTargetTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const val = e.target.value;
-    setTargetType(val);
-    setTargetProperty('');
-    setConditionType('');
-    setConditionValue(null);
-    setScope('');
-    setScopeValue('');
-    const target = targets.find(t => t.type === val) || null;
-    setSelectedTarget(target);
-    setSelectedProperty(null);
-    if (target) setScope('cluster');
-  };
-
-  const handlePropertyChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const val = e.target.value;
-    setTargetProperty(val);
-    setConditionType('');
-    setConditionValue(null);
-    const prop = selectedTarget?.properties.find(p => p.name === val) || null;
-    setSelectedProperty(prop);
-    if (prop) setConditionType(prop.supportedConditionTypes[0] || '');
-  };
-
-  const handleConditionTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setConditionType(e.target.value);
-    setConditionValue(null);
-  };
-
-  const buildConditionValue = (ct: string, raw: any): ConditionValue => {
-    if (ct === 'range') return { min: raw.min ?? 0, max: raw.max ?? 0 };
-    if (ct === 'in') return { values: raw.values ?? [] };
-    return { value: raw };
-  };
-
-  const renderConditionValueInput = () => {
-    if (!selectedProperty) return null;
-    const { type, enumValues, unit } = selectedProperty;
-
-    if (type === 'enum' && enumValues) {
-      if (conditionType === 'in') {
-        return (
-          <div className="space-y-2">
-            <label className="text-sm text-slate-400">Select values (hold Ctrl/Cmd for multiple)</label>
-            <select multiple className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-[var(--accent)] transition-colors h-32"
-              value={((conditionValue as InConditionValue)?.values || []).map(String)}
-              onChange={e => {
-                const selected = Array.from(e.target.selectedOptions, opt => opt.value);
-                setConditionValue(buildConditionValue('in', { values: selected }));
-              }}>
-              {enumValues.map(v => <option key={v} value={v}>{v}</option>)}
-            </select>
-          </div>
-        );
-      }
-      return (
-        <div className="space-y-2">
-          <label className="text-sm text-slate-400">Value</label>
-          <select className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-[var(--accent)] transition-colors"
-            value={(conditionValue as SingleConditionValue)?.value ?? ''}
-            onChange={e => setConditionValue(buildConditionValue(conditionType, e.target.value))}>
-            <option value="">Select a value</option>
-            {enumValues.map(v => <option key={v} value={v}>{v}</option>)}
-          </select>
-        </div>
-      );
-    }
-
-    if (conditionType === 'range') {
-      return (
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <label className="text-sm text-slate-400">Min {unit ? `(${unit})` : ''}</label>
-            <input type="number" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-[var(--accent)] transition-colors"
-              value={(conditionValue as RangeConditionValue)?.min ?? ''}
-              onChange={e => setConditionValue(buildConditionValue('range', { min: parseFloat(e.target.value) || 0, max: (conditionValue as RangeConditionValue)?.max ?? 0 }))}
-              placeholder="Minimum" />
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm text-slate-400">Max {unit ? `(${unit})` : ''}</label>
-            <input type="number" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-[var(--accent)] transition-colors"
-              value={(conditionValue as RangeConditionValue)?.max ?? ''}
-              onChange={e => setConditionValue(buildConditionValue('range', { min: (conditionValue as RangeConditionValue)?.min ?? 0, max: parseFloat(e.target.value) || 0 }))}
-              placeholder="Maximum" />
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <div className="space-y-2">
-        <label className="text-sm text-slate-400">Value {unit ? `(${unit})` : ''}</label>
-        <input type={type === 'number' ? 'number' : 'text'} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-[var(--accent)] transition-colors"
-          value={(conditionValue as SingleConditionValue)?.value ?? ''}
-          onChange={e => setConditionValue(buildConditionValue(conditionType, type === 'number' ? parseFloat(e.target.value) || 0 : e.target.value))}
-          placeholder={`Enter value`} />
-      </div>
-    );
-  };
-
-  const getScopeOptions = () => {
-    if (!selectedTarget) return [];
-    const scopes = ['cluster'];
-    if (selectedTarget.type === 'Pod' || selectedTarget.type === 'PVC') scopes.push('namespace');
-    scopes.push(selectedTarget.type.toLowerCase());
-    return scopes;
-  };
-
-  const getScopeValueOptions = () => {
-    if (scope === 'cluster') return [];
-    if (scope === 'namespace') return clusterInfo.namespaces.map(ns => ({ value: ns.name, label: ns.name }));
-    if (scope === 'node') return latestMetrics.map((m: any) => ({ value: m.machineId, label: m.machineId }));
-    if (scope === 'pod') return clusterInfo.pods.filter(Boolean).map((pod: any) => ({ value: pod.name, label: `${pod.namespace}/${pod.name}` }));
-    if (scope === 'pvc') return (clusterInfo.pvcs || []).map((pvc: any) => ({ value: pvc.name, label: `${pvc.namespace}/${pvc.name}` }));
-    return [];
-  };
-
-  const handleCreateTrigger = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      await api.post('alerts/triggers', {
-        json: {
-          name, targetType, targetProperty, conditionType, conditionValue,
-          scope, scopeValue: scopeValue || null,
-          messageTemplate: messageTemplate || null,
-          enabled: true, lookbackSeconds, autoResolveEnabled, autoResolveLookbackSeconds, noRetriggerSeconds,
-          integrationIds: selectedIntegrationIds,
-        },
-      });
-      setShowForm(false);
-      resetForm();
-      fetchData();
-    } catch (err) {
-      console.error('Failed to create trigger', err);
-    }
-  };
-
-  const resetForm = () => {
-    setName(''); setTargetType(''); setTargetProperty(''); setConditionType(''); setConditionValue(null);
-    setScope(''); setScopeValue(''); setMessageTemplate(''); setLookbackSeconds(0);
-    setAutoResolveEnabled(true); setAutoResolveLookbackSeconds(0); setNoRetriggerSeconds(0);
-    setSelectedTarget(null); setSelectedProperty(null); setSelectedIntegrationIds([]);
-  };
-
   const toggleTrigger = async (id: string, currentlyEnabled: boolean) => {
     try {
       await api.patch(`alerts/triggers/${id}`, { json: { enabled: !currentlyEnabled } });
@@ -276,44 +103,13 @@ export default function AlertsConfiguration() {
     try {
       await api.delete(`alerts/triggers/${id}`);
       setTriggers(prev => prev.filter(t => t.id !== id));
-    } catch (err) { console.error('Failed to delete logger', err); }
+    } catch (err) { console.error('Failed to delete trigger', err); }
   };
 
   const formatConditionValue = (conditionType: string, value: ConditionValue): string => {
     if (conditionType === 'range') { const r = value as RangeConditionValue; return `${r?.min ?? '?'} - ${r?.max ?? '?'}`; }
     if (conditionType === 'in') { const i = value as InConditionValue; return (i?.values || []).join(', '); }
     return String((value as SingleConditionValue)?.value ?? '');
-  };
-
-  // ===================== INTEGRATION FORM STATE =====================
-  const [showIntegrationForm, setShowIntegrationForm] = useState(false);
-  const [intName, setIntName] = useState('');
-  const [intType, setIntType] = useState<'slack' | 'teams' | 'discord' | 'webhook'>('slack');
-  const [intWebhookUrl, setIntWebhookUrl] = useState('');
-  const [intUrl, setIntUrl] = useState('');
-  const [intHeaders, setIntHeaders] = useState('');
-  const [intSendAll, setIntSendAll] = useState(false);
-
-  const resetIntForm = () => {
-    setIntName(''); setIntType('slack'); setIntWebhookUrl(''); setIntUrl(''); setIntHeaders(''); setIntSendAll(false);
-  };
-
-  const handleCreateIntegration = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const config = intType === 'webhook'
-        ? { url: intUrl, headers: intHeaders ? JSON.parse(intHeaders) : undefined }
-        : { webhookUrl: intWebhookUrl };
-
-      await api.post('alerts/integrations', {
-        json: { name: intName, type: intType, config, sendAllAlerts: intSendAll, enabled: true },
-      });
-      setShowIntegrationForm(false);
-      resetIntForm();
-      fetchData();
-    } catch (err) {
-      console.error('Failed to create integration', err);
-    }
   };
 
   const deleteIntegration = async (id: string) => {
@@ -334,20 +130,16 @@ export default function AlertsConfiguration() {
     }
   };
 
-  // Selectable integrations for trigger form (exclude sendAllAlerts ones)
-  const selectableIntegrations = integrations.filter(i => !i.sendAllAlerts && i.enabled);
-
-  const toggleIntegrationSelection = (id: string) => {
-    setSelectedIntegrationIds(prev =>
-      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id],
-    );
-  };
-
-  // Get integration names by IDs
   const getIntegrationNames = (ids?: string[]): string[] => {
     if (!ids?.length) return [];
     return ids.map(id => integrations.find(i => i.id === id)?.name).filter(Boolean) as string[];
   };
+
+  if (authLoading) return <PageLoading />;
+
+  if (!authorized) {
+    return <AccessDenied title="Alerts Configuration" icon={<Settings size={32} className="text-[var(--accent)]" />} />;
+  }
 
   return (
     <div className="p-8 max-w-7xl mx-auto min-h-screen">
@@ -358,7 +150,6 @@ export default function AlertsConfiguration() {
         </div>
       </header>
 
-      {/* Tabs */}
       <div className="flex gap-1 mb-8 bg-white/5 rounded-xl p-1 w-fit">
         <button
           onClick={() => setActiveTab('triggers')}
@@ -376,7 +167,6 @@ export default function AlertsConfiguration() {
         </button>
       </div>
 
-      {/* ===================== TRIGGERS TAB ===================== */}
       {activeTab === 'triggers' && (
         <>
           {canConfigureAlerts && (
@@ -390,155 +180,14 @@ export default function AlertsConfiguration() {
           )}
 
           {showForm && (
-            <section className="mb-12 glass p-8 rounded-3xl animate-in fade-in slide-in-from-top-4 duration-300">
-              <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
-                <Activity size={20} className="text-[var(--accent)]" />
-                Create Alert Trigger
-              </h2>
-              <form onSubmit={handleCreateTrigger} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-sm text-slate-400">Trigger Name</label>
-                  <input required type="text" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-[var(--accent)] transition-colors"
-                    value={name} onChange={e => setName(e.target.value)} placeholder="e.g. High Node CPU" />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm text-slate-400">Target Type</label>
-                  <select required className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-[var(--accent)] transition-colors appearance-none"
-                    value={targetType} onChange={handleTargetTypeChange}>
-                    <option value="" disabled>Select a target type</option>
-                    {targets.map(t => <option key={t.type} value={t.type}>{t.label}</option>)}
-                  </select>
-                </div>
-
-                {selectedTarget && (
-                  <>
-                    <div className="space-y-2">
-                      <label className="text-sm text-slate-400">Property</label>
-                      <select required className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-[var(--accent)] transition-colors appearance-none"
-                        value={targetProperty} onChange={handlePropertyChange}>
-                        <option value="" disabled>Select a property</option>
-                        {selectedTarget.properties.map(p => (
-                          <option key={p.name} value={p.name}>{p.label} {p.unit ? `(${p.unit})` : ''}</option>
-                        ))}
-                      </select>
-                      {selectedProperty?.description && <p className="text-xs text-slate-500 mt-1">{selectedProperty.description}</p>}
-                    </div>
-
-                    {selectedProperty && (
-                      <>
-                        <div className="space-y-2">
-                          <label className="text-sm text-slate-400">Condition</label>
-                          <select required className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-[var(--accent)] transition-colors appearance-none"
-                            value={conditionType} onChange={handleConditionTypeChange}>
-                            <option value="" disabled>Select condition</option>
-                            {selectedProperty.supportedConditionTypes.map(ct => (
-                              <option key={ct} value={ct}>
-                                {ct === 'eq' ? 'Equals' : ct === 'neq' ? 'Not Equals' : ct === 'gt' ? 'Greater Than' :
-                                 ct === 'gte' ? 'Greater Than or Equal' : ct === 'lt' ? 'Less Than' :
-                                 ct === 'lte' ? 'Less Than or Equal' : ct === 'range' ? 'Range' :
-                                 ct === 'in' ? 'In List' : ct}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        {conditionType && <div className="md:col-span-2">{renderConditionValueInput()}</div>}
-                      </>
-                    )}
-
-                    <div className="space-y-2">
-                      <label className="text-sm text-slate-400">Scope</label>
-                      <select required className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-[var(--accent)] transition-colors appearance-none"
-                        value={scope} onChange={e => { setScope(e.target.value); setScopeValue(''); }}>
-                        {getScopeOptions().map(sc => <option key={sc} value={sc}>{sc.replace(/^[a-z]/, (c) => c.toUpperCase())}</option>)}
-                      </select>
-                    </div>
-
-                    {scope !== 'cluster' && (
-                      <div className="space-y-2">
-                        <label className="text-sm text-slate-400">Target Value</label>
-                        <select className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-[var(--accent)] transition-colors appearance-none"
-                          value={scopeValue} onChange={e => setScopeValue(e.target.value)}>
-                          <option value="">All {scope}s</option>
-                          {getScopeValueOptions().map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                        </select>
-                      </div>
-                    )}
-
-                    {/* Advanced options */}
-                    <div className="md:col-span-2 border-t border-white/10 pt-4 mt-2">
-                      <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-widest mb-4">Advanced Options</h3>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="space-y-2">
-                          <label className="text-sm text-slate-400">Lookback (seconds)</label>
-                          <input type="number" min={0} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-[var(--accent)] transition-colors"
-                            value={lookbackSeconds} onChange={e => setLookbackSeconds(parseInt(e.target.value) || 0)} placeholder="0 = no lookback" />
-                          <p className="text-xs text-slate-500">Condition must match for the past X seconds</p>
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-sm text-slate-400">No Retrigger (seconds)</label>
-                          <input type="number" min={0} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-[var(--accent)] transition-colors"
-                            value={noRetriggerSeconds} onChange={e => setNoRetriggerSeconds(parseInt(e.target.value) || 0)} placeholder="0 = always retrigger" />
-                          <p className="text-xs text-slate-500">Cooldown before same trigger fires again</p>
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-sm text-slate-400">Auto-Resolve Lookback (seconds)</label>
-                          <input type="number" min={0} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-[var(--accent)] transition-colors"
-                            value={autoResolveLookbackSeconds} onChange={e => setAutoResolveLookbackSeconds(parseInt(e.target.value) || 0)} placeholder="0 = use trigger lookback" />
-                          <p className="text-xs text-slate-500">Condition must not match for this period to auto-resolve</p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-3 mt-4">
-                        <label className="relative inline-flex items-center cursor-pointer">
-                          <input type="checkbox" className="sr-only peer" checked={autoResolveEnabled} onChange={e => setAutoResolveEnabled(e.target.checked)} />
-                          <div className="w-9 h-5 bg-white/10 rounded-full peer peer-checked:bg-[var(--accent)] peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:start-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all"></div>
-                        </label>
-                        <span className="text-sm text-slate-400">Enable auto-resolve</span>
-                      </div>
-
-                      <div className="mt-4 space-y-2">
-                        <label className="text-sm text-slate-400">Custom Message Template (optional)</label>
-                        <input type="text" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-[var(--accent)] transition-colors"
-                          value={messageTemplate} onChange={e => setMessageTemplate(e.target.value)}
-                          placeholder='e.g. {targetType} {targetId} has {property} = {value}' />
-                        <p className="text-xs text-slate-500">Variables: {'{targetType}'}, {'{targetId}'}, {'{property}'}, {'{value}'}, {'{threshold}'}, {'{conditionType}'}</p>
-                      </div>
-                    </div>
-
-                    {/* Integration selection */}
-                    {selectableIntegrations.length > 0 && (
-                      <div className="md:col-span-2 border-t border-white/10 pt-4">
-                        <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-widest mb-3">Notify Integrations</h3>
-                        <div className="flex flex-wrap gap-3">
-                          {selectableIntegrations.map(int => (
-                            <button
-                              key={int.id}
-                              type="button"
-                              onClick={() => toggleIntegrationSelection(int.id)}
-                              className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm border transition-colors ${
-                                selectedIntegrationIds.includes(int.id)
-                                  ? 'border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)]'
-                                  : 'border-white/10 text-slate-400 hover:text-white hover:border-white/20'
-                              }`}
-                            >
-                              {getIntegrationIcon(int.type)}
-                              {int.name}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </>
-                )}
-
-                <div className="md:col-span-2 flex justify-end gap-4 mt-4">
-                  <button type="button" onClick={() => { setShowForm(false); resetForm(); }}
-                    className="px-6 py-2 rounded-xl text-slate-400 bg-white/5 hover:bg-white/10 transition-colors">Cancel</button>
-                  <button type="submit" className="px-6 py-2 rounded-xl text-white bg-[var(--accent)] hover:opacity-90 transition-opacity">Save Trigger</button>
-                </div>
-              </form>
-            </section>
+            <AlertTriggerForm
+              targets={targets}
+              integrations={integrations}
+              clusterInfo={clusterInfo}
+              latestMetrics={latestMetrics}
+              onSuccess={() => { setShowForm(false); fetchData(); }}
+              onCancel={() => setShowForm(false)}
+            />
           )}
 
           <section>
@@ -558,7 +207,6 @@ export default function AlertsConfiguration() {
               <div className="grid grid-cols-[repeat(auto-fill,minmax(380px,1fr))] gap-6">
                 {triggers.map(trigger => {
                   const integrationNames = getIntegrationNames(trigger.integrationIds);
-                  // Also show sendAllAlerts integrations
                   const autoIntegrations = integrations.filter(i => i.sendAllAlerts && i.enabled);
 
                   return (
@@ -617,7 +265,6 @@ export default function AlertsConfiguration() {
                         </div>
                       </div>
 
-                      {/* Integration badges */}
                       {(integrationNames.length > 0 || autoIntegrations.length > 0) && (
                         <div className="flex flex-wrap gap-2 mt-4">
                           {integrationNames.map(name => (
@@ -644,7 +291,6 @@ export default function AlertsConfiguration() {
         </>
       )}
 
-      {/* ===================== INTEGRATIONS TAB ===================== */}
       {activeTab === 'integrations' && (
         <>
           {canManageIntegrations && (
@@ -658,68 +304,10 @@ export default function AlertsConfiguration() {
           )}
 
           {showIntegrationForm && (
-            <section className="mb-12 glass p-8 rounded-3xl animate-in fade-in slide-in-from-top-4 duration-300">
-              <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
-                <Bell size={20} className="text-[var(--accent)]" />
-                Create Integration
-              </h2>
-              <form onSubmit={handleCreateIntegration} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-sm text-slate-400">Integration Name</label>
-                  <input required type="text" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-[var(--accent)] transition-colors"
-                    value={intName} onChange={e => setIntName(e.target.value)} placeholder="e.g. Team Slack" />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm text-slate-400">Type</label>
-                  <select required className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-[var(--accent)] transition-colors appearance-none"
-                    value={intType} onChange={e => setIntType(e.target.value as any)}>
-                    <option value="slack">Slack</option>
-                    <option value="discord">Discord</option>
-                    <option value="teams">Microsoft Teams</option>
-                    <option value="webhook">Webhook</option>
-                  </select>
-                </div>
-
-                {intType !== 'webhook' ? (
-                  <div className="md:col-span-2 space-y-2">
-                    <label className="text-sm text-slate-400">Webhook URL</label>
-                    <input required type="url" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-[var(--accent)] transition-colors"
-                      value={intWebhookUrl} onChange={e => setIntWebhookUrl(e.target.value)} placeholder="https://hooks.slack.com/services/..." />
-                  </div>
-                ) : (
-                  <>
-                    <div className="md:col-span-2 space-y-2">
-                      <label className="text-sm text-slate-400">Webhook URL</label>
-                      <input required type="url" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-[var(--accent)] transition-colors"
-                        value={intUrl} onChange={e => setIntUrl(e.target.value)} placeholder="https://hooks.example.com/..." />
-                    </div>
-                    <div className="md:col-span-2 space-y-2">
-                      <label className="text-sm text-slate-400">Custom Headers (JSON, optional)</label>
-                      <input type="text" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-[var(--accent)] transition-colors"
-                        value={intHeaders} onChange={e => setIntHeaders(e.target.value)} placeholder='{"X-API-Key": "your-key"}' />
-                    </div>
-                  </>
-                )}
-
-                <div className="md:col-span-2 flex items-center gap-3">
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" className="sr-only peer" checked={intSendAll} onChange={e => setIntSendAll(e.target.checked)} />
-                    <div className="w-9 h-5 bg-white/10 rounded-full peer peer-checked:bg-purple-500 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:start-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all"></div>
-                  </label>
-                  <div>
-                    <span className="text-sm text-slate-400">Send all alerts</span>
-                    <p className="text-xs text-slate-500">This integration will receive <strong>all</strong> alerts automatically, without per-trigger selection</p>
-                  </div>
-                </div>
-
-                <div className="md:col-span-2 flex justify-end gap-4 mt-4">
-                  <button type="button" onClick={() => { setShowIntegrationForm(false); resetIntForm(); }}
-                    className="px-6 py-2 rounded-xl text-slate-400 bg-white/5 hover:bg-white/10 transition-colors">Cancel</button>
-                  <button type="submit" className="px-6 py-2 rounded-xl text-white bg-[var(--accent)] hover:opacity-90 transition-opacity">Save Integration</button>
-                </div>
-              </form>
-            </section>
+            <IntegrationForm
+              onSuccess={() => { setShowIntegrationForm(false); fetchData(); }}
+              onCancel={() => setShowIntegrationForm(false)}
+            />
           )}
 
           <section>

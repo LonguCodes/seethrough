@@ -3,6 +3,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Layers, Globe, Server, Box } from 'lucide-react';
+import { useRequirePermission } from '../../lib/use-require-permission';
+import { PERMISSIONS } from '../../lib/permissions';
+import PageLoading from '../components/PageLoading';
+import AccessDenied from '../components/AccessDenied';
 
 interface Pod {
   name: string;
@@ -24,6 +28,7 @@ interface ClusterInfo {
 import api from '../../lib/api';
 
 export default function ClusterPage() {
+  const { authorized, loading: authLoading } = useRequirePermission(PERMISSIONS.CLUSTER_VIEW);
   const [clusterInfo, setClusterInfo] = useState<ClusterInfo | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -52,6 +57,12 @@ export default function ClusterPage() {
       return acc;
     }, {} as Record<string, Pod[]>);
   }, [clusterInfo]);
+
+  if (authLoading) return <PageLoading />;
+
+  if (!authorized) {
+    return <AccessDenied title="Cluster View" icon={<Layers size={32} className="text-[var(--accent)]" />} />;
+  }
 
   return (
     <div className="p-8 max-w-7xl mx-auto min-h-screen">

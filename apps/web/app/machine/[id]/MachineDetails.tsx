@@ -18,8 +18,12 @@ import {
   Database,
   HardDrive,
   Server,
-  Activity
+  Activity,
 } from 'lucide-react';
+import { useRequirePermission } from '../../../lib/use-require-permission';
+import { PERMISSIONS } from '../../../lib/permissions';
+import PageLoading from '../../components/PageLoading';
+import AccessDenied from '../../components/AccessDenied';
 
 interface Metric {
   machineId: string;
@@ -37,6 +41,7 @@ interface MachineDetailsProps {
 import api from '../../../lib/api';
 
 export default function MachineDetails({ id, apiUrl }: MachineDetailsProps) {
+  const { authorized, loading: authLoading } = useRequirePermission(PERMISSIONS.CLUSTER_VIEW);
   const [history, setHistory] = useState<Metric[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState(Date.now());
@@ -88,6 +93,20 @@ export default function MachineDetails({ id, apiUrl }: MachineDetailsProps) {
       timestamp: new Date(m.timestamp).getTime()
     }));
   }, [history]);
+
+  if (authLoading) return <PageLoading />;
+
+  if (!authorized) {
+    return (
+      <>
+        <Link href="/" className="flex items-center gap-2 text-slate-400 no-underline text-sm hover:text-[var(--accent)] transition-colors mb-6 p-8 max-w-7xl mx-auto">
+          <ArrowLeft size={18} />
+          Back to Dashboard
+        </Link>
+        <AccessDenied />
+      </>
+    );
+  }
 
   if (loading) return <div className="p-8 max-w-7xl mx-auto min-h-screen text-[var(--foreground)]">Loading history for {id}...</div>;
 

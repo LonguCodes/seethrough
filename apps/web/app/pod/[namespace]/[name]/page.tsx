@@ -5,6 +5,10 @@ import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import PodDetails from '../../../PodDetails';
 import api from '../../../../lib/api';
+import { useRequirePermission } from '../../../../lib/use-require-permission';
+import { PERMISSIONS } from '../../../../lib/permissions';
+import PageLoading from '../../../components/PageLoading';
+import AccessDenied from '../../../components/AccessDenied';
 
 interface Pod {
   name: string;
@@ -17,6 +21,7 @@ interface Pod {
 }
 
 export default function PodPage({ params }: { params: Promise<{ namespace: string; name: string }> }) {
+  const { authorized, loading: authLoading } = useRequirePermission(PERMISSIONS.PODS_VIEW);
   const { namespace, name } = use(params);
   const [pod, setPod] = useState<Pod | null>(null);
   const [loading, setLoading] = useState(true);
@@ -29,6 +34,25 @@ export default function PodPage({ params }: { params: Promise<{ namespace: strin
       })
       .catch(() => setLoading(false));
   }, [namespace, name]);
+
+  if (authLoading) return <PageLoading />;
+
+  if (!authorized) {
+    return (
+      <div className="min-h-screen bg-[var(--background)] text-white">
+        <div className="max-w-7xl mx-auto px-6 py-8">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-2 text-slate-500 hover:text-[var(--accent)] transition-colors mb-8 group"
+          >
+            <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
+            Back to Dashboard
+          </Link>
+          <AccessDenied />
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

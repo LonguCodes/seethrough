@@ -5,6 +5,10 @@ import { io } from 'socket.io-client';
 import Link from 'next/link';
 import { Activity, Cpu, Database, HardDrive, LayoutDashboard, Server, History, Box, Layers, Globe, AlertTriangle, Settings } from 'lucide-react';
 import AlertsList from './components/AlertsList';
+import { useRequirePermission } from '../lib/use-require-permission';
+import { PERMISSIONS } from '../lib/permissions';
+import PageLoading from './components/PageLoading';
+import AccessDenied from './components/AccessDenied';
 
 interface Metric {
 // ... existing interfaces
@@ -39,6 +43,7 @@ interface DashboardProps {
 import api from '../lib/api';
 
 export default function Dashboard({ apiUrl }: DashboardProps) {
+  const { authorized, loading: authLoading } = useRequirePermission(PERMISSIONS.CLUSTER_VIEW);
   const [metrics, setMetrics] = useState<Metric[]>([]);
   const [clusterInfo, setClusterInfo] = useState<ClusterInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -101,6 +106,12 @@ export default function Dashboard({ apiUrl }: DashboardProps) {
     if (value > 60) return 'var(--warning)';
     return 'var(--accent)';
   };
+
+  if (authLoading) return <PageLoading />;
+
+  if (!authorized) {
+    return <AccessDenied title="System Monitor" icon={<LayoutDashboard size={32} className="text-[var(--accent)]" />} />;
+  }
 
   return (
     <div className="p-8 max-w-7xl mx-auto min-h-screen">

@@ -5,6 +5,11 @@ import { Shield, Plus, Settings, Trash2, ToggleLeft, ToggleRight, AlertCircle, C
 import api from '../../lib/api';
 import { useAuth } from '../../lib/use-auth';
 import { hasPermission, PERMISSIONS } from '../../lib/permissions';
+import { useRequirePermission } from '../../lib/use-require-permission';
+import PageLoading from '../components/PageLoading';
+import AccessDenied from '../components/AccessDenied';
+import SsoConfigForm from './SsoConfigForm';
+import type { SsoConfigFormValues } from './SsoConfigForm';
 
 interface SsoConfig {
   id: string;
@@ -23,9 +28,9 @@ interface SsoConfig {
   updatedAt: string;
 }
 
-const EMPTY_FORM = {
+const EMPTY_FORM: SsoConfigFormValues = {
   name: '',
-  type: 'oidc' as 'saml' | 'oidc',
+  type: 'oidc',
   enabled: true,
   allowOnlySso: false,
   autoCreateUsers: false,
@@ -39,6 +44,7 @@ const EMPTY_FORM = {
 };
 
 export default function SsoPage() {
+  const { authorized, loading: authLoading } = useRequirePermission(PERMISSIONS.SSO_VIEW);
   const { user } = useAuth();
   const canManageSso = hasPermission(user, PERMISSIONS.SSO_MANAGE);
   const [configs, setConfigs] = useState<SsoConfig[]>([]);
@@ -46,9 +52,7 @@ export default function SsoPage() {
   const [error, setError] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState(EMPTY_FORM);
-  const [formError, setFormError] = useState('');
-  const [formLoading, setFormLoading] = useState(false);
+  const [formDefaultValues, setFormDefaultValues] = useState<SsoConfigFormValues>(EMPTY_FORM);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const fetchConfigs = async () => {
@@ -71,57 +75,8 @@ export default function SsoPage() {
     fetchConfigs();
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setFormLoading(true);
-    setFormError('');
-
-    try {
-      const payload: any = {
-        name: form.name,
-        type: form.type,
-        enabled: form.enabled,
-        allowOnlySso: form.allowOnlySso,
-        autoCreateUsers: form.autoCreateUsers,
-        defaultRole: form.defaultRole,
-      };
-
-      if (form.type === 'saml') {
-        payload.samlEntryPoint = form.samlEntryPoint || undefined;
-        payload.samlIssuer = form.samlIssuer || undefined;
-        payload.samlCert = form.samlCert || undefined;
-      } else {
-        payload.oidcIssuerUrl = form.oidcIssuerUrl || undefined;
-        payload.oidcClientId = form.oidcClientId || undefined;
-        if (form.oidcClientSecret) {
-          payload.oidcClientSecret = form.oidcClientSecret;
-        }
-      }
-
-      if (editingId) {
-        await api.patch(`sso/${editingId}`, { json: payload });
-      } else {
-        await api.post('sso', { json: payload });
-      }
-
-      setShowForm(false);
-      setEditingId(null);
-      setForm(EMPTY_FORM);
-      fetchConfigs();
-    } catch (err: any) {
-      if (err.response) {
-        const data = await err.response.json();
-        setFormError(data.message || 'Failed to save SSO configuration');
-      } else {
-        setFormError('Failed to save SSO configuration');
-      }
-    } finally {
-      setFormLoading(false);
-    }
-  };
-
   const handleEdit = (config: SsoConfig) => {
-    setForm({
+    setFormDefaultValues({
       name: config.name,
       type: config.type,
       enabled: config.enabled,
@@ -137,7 +92,6 @@ export default function SsoPage() {
     });
     setEditingId(config.id);
     setShowForm(true);
-    setFormError('');
   };
 
   const handleDelete = async (id: string, name: string) => {
@@ -163,6 +117,12 @@ export default function SsoPage() {
     return type === 'oidc' ? 'OpenID Connect' : 'SAML';
   };
 
+  if (authLoading) return <PageLoading />;
+
+  if (!authorized) {
+    return <AccessDenied title="SSO Configuration" icon={<Shield size={32} className="text-[var(--accent)]" />} />;
+  }
+
   if (error && loading) {
     return (
       <div className="p-8 max-w-7xl mx-auto min-h-screen">
@@ -187,7 +147,7 @@ export default function SsoPage() {
         </div>
         {canManageSso && (
           <button
-            onClick={() => { setShowForm(!showForm); setEditingId(null); setForm(EMPTY_FORM); setFormError(''); }}
+            onClick={() => { setShowForm(!showForm); setEditingId(null); setFormDefaultValues(EMPTY_FORM); }}
             className="flex items-center gap-2 text-sm text-white bg-[var(--accent)] hover:opacity-90 transition-opacity px-4 py-2 rounded-xl"
           >
             <Plus size={18} />
@@ -196,201 +156,20 @@ export default function SsoPage() {
         )}
       </header>
 
-      {/* Form */}
       {showForm && (
-        <section className="mb-12 glass p-8 rounded-3xl animate-in fade-in slide-in-from-top-4 duration-300">
-          <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
-            <Plus size={20} className="text-[var(--accent)]" />
-            {editingId ? 'Edit SSO Configuration' : 'New SSO Configuration'}
-          </h2>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="text-sm text-slate-400">Display Name</label>
-                <input
-                  required
-                  type="text"
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white outline-none focus:border-[var(--accent)] transition-colors"
-                  value={form.name}
-                  onChange={e => setForm({ ...form, name: e.target.value })}
-                  placeholder="e.g., Company Okta"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm text-slate-400">Type</label>
-                <select
-                  className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 text-white outline-none focus:border-[var(--accent)] transition-colors appearance-none"
-                  value={form.type}
-                  onChange={e => setForm({ ...form, type: e.target.value as 'saml' | 'oidc' })}
-                >
-                  <option value="oidc">OpenID Connect (OIDC)</option>
-                  <option value="saml">SAML 2.0</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Protocol-specific fields */}
-            {form.type === 'saml' ? (
-              <div className="space-y-4 p-4 rounded-xl bg-white/[0.02] border border-white/5">
-                <p className="text-xs text-slate-500 uppercase tracking-widest">SAML Configuration</p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-sm text-slate-400">Entry Point (IdP URL)</label>
-                    <input
-                      required
-                      type="url"
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white outline-none focus:border-[var(--accent)] transition-colors"
-                      value={form.samlEntryPoint}
-                      onChange={e => setForm({ ...form, samlEntryPoint: e.target.value })}
-                      placeholder="https://idp.example.com/sso/saml"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm text-slate-400">Issuer (SP Entity ID)</label>
-                    <input
-                      required
-                      type="text"
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white outline-none focus:border-[var(--accent)] transition-colors"
-                      value={form.samlIssuer}
-                      onChange={e => setForm({ ...form, samlIssuer: e.target.value })}
-                      placeholder="seethrough-sp"
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm text-slate-400">X.509 Certificate (optional)</label>
-                  <textarea
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white outline-none focus:border-[var(--accent)] transition-colors font-mono text-xs"
-                    value={form.samlCert}
-                    onChange={e => setForm({ ...form, samlCert: e.target.value })}
-                    placeholder="-----BEGIN CERTIFICATE-----&#10;...&#10;-----END CERTIFICATE-----"
-                    rows={3}
-                  />
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-4 p-4 rounded-xl bg-white/[0.02] border border-white/5">
-                <p className="text-xs text-slate-500 uppercase tracking-widest">OpenID Connect Configuration</p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-sm text-slate-400">Issuer URL</label>
-                    <input
-                      required
-                      type="url"
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white outline-none focus:border-[var(--accent)] transition-colors"
-                      value={form.oidcIssuerUrl}
-                      onChange={e => setForm({ ...form, oidcIssuerUrl: e.target.value })}
-                      placeholder="https://accounts.google.com"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm text-slate-400">Client ID</label>
-                    <input
-                      required
-                      type="text"
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white outline-none focus:border-[var(--accent)] transition-colors"
-                      value={form.oidcClientId}
-                      onChange={e => setForm({ ...form, oidcClientId: e.target.value })}
-                      placeholder="your-client-id"
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm text-slate-400">Client Secret {editingId ? '(leave blank to keep current)' : ''}</label>
-                  <input
-                    type="password"
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white outline-none focus:border-[var(--accent)] transition-colors"
-                    value={form.oidcClientSecret}
-                    onChange={e => setForm({ ...form, oidcClientSecret: e.target.value })}
-                    placeholder={editingId ? '••••••••' : 'your-client-secret'}
-                    required={!editingId}
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Common settings */}
-            <div className="space-y-4 p-4 rounded-xl bg-white/[0.02] border border-white/5">
-              <p className="text-xs text-slate-500 uppercase tracking-widest">User Settings</p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="flex items-center justify-between p-3 rounded-xl bg-white/[0.03]">
-                  <div>
-                    <p className="text-sm text-slate-200">Auto-Create Users</p>
-                    <p className="text-xs text-slate-500">Automatically create user accounts on first SSO login</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setForm({ ...form, autoCreateUsers: !form.autoCreateUsers })}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                      form.autoCreateUsers ? 'bg-[var(--accent)]' : 'bg-white/10'
-                    }`}
-                  >
-                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      form.autoCreateUsers ? 'translate-x-6' : 'translate-x-1'
-                    }`} />
-                  </button>
-                </div>
-
-                <div className="flex items-center justify-between p-3 rounded-xl bg-white/[0.03]">
-                  <div>
-                    <p className="text-sm text-slate-200">Allow Only SSO Users</p>
-                    <p className="text-xs text-slate-500">Disable local login when this is active</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setForm({ ...form, allowOnlySso: !form.allowOnlySso })}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                      form.allowOnlySso ? 'bg-[var(--warning)]' : 'bg-white/10'
-                    }`}
-                  >
-                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      form.allowOnlySso ? 'translate-x-6' : 'translate-x-1'
-                    }`} />
-                  </button>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm text-slate-400">Default Role for Auto-Created Users</label>
-                <select
-                  className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 text-white outline-none focus:border-[var(--accent)] transition-colors appearance-none"
-                  value={form.defaultRole}
-                  onChange={e => setForm({ ...form, defaultRole: e.target.value })}
-                >
-                  <option value="viewer">Viewer</option>
-                  <option value="admin">Admin</option>
-                </select>
-              </div>
-            </div>
-
-            {formError && (
-              <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
-                {formError}
-              </div>
-            )}
-
-            <div className="flex justify-end gap-4">
-              <button
-                type="button"
-                onClick={() => { setShowForm(false); setEditingId(null); setFormError(''); }}
-                className="px-6 py-2 rounded-xl text-slate-400 bg-white/5 hover:bg-white/10 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={formLoading}
-                className="px-6 py-2 rounded-xl text-white bg-[var(--accent)] hover:opacity-90 transition-opacity disabled:opacity-50"
-              >
-                {formLoading ? 'Saving...' : editingId ? 'Update' : 'Create'}
-              </button>
-            </div>
-          </form>
-        </section>
+        <SsoConfigForm
+          editingId={editingId}
+          defaultValues={formDefaultValues}
+          onSuccess={() => {
+            setShowForm(false);
+            setEditingId(null);
+            setFormDefaultValues(EMPTY_FORM);
+            fetchConfigs();
+          }}
+          onCancel={() => { setShowForm(false); setEditingId(null); }}
+        />
       )}
 
-      {/* Configs List */}
       <section>
         <h2 className="text-2xl font-semibold mb-8 flex items-center gap-3">
           <Settings size={24} className="text-[var(--accent)]" />

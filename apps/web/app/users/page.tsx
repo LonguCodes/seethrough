@@ -5,6 +5,13 @@ import { Users, Trash2, Shield, UserPlus, AlertCircle, Copy, Check, Link2, Plus,
 import api from '../../lib/api';
 import { useAuth } from '../../lib/use-auth';
 import { hasPermission, PERMISSIONS, ALL_PERMISSIONS, PERMISSION_LABELS, type Permission } from '../../lib/permissions';
+import { useRequirePermission } from '../../lib/use-require-permission';
+import PageLoading from '../components/PageLoading';
+import AccessDenied from '../components/AccessDenied';
+import InviteUserForm from './InviteUserForm';
+import type { InviteUserFormValues, InvitationResult } from './InviteUserForm';
+import RoleForm from './RoleForm';
+import type { RoleFormValues } from './RoleForm';
 
 interface RoleEntity {
   id: string;
@@ -19,43 +26,34 @@ interface User {
   role: RoleEntity | string;
 }
 
-interface InvitationResult {
-  token: string;
-  username: string;
-  role: string;
-  expiresAt: string;
-}
-
 type Tab = 'users' | 'roles';
 
+const EMPTY_ROLE_FORM: RoleFormValues = {
+  name: '',
+  superadmin: false,
+  permissions: [],
+};
+
 export default function UsersPage() {
+  const { authorized, loading: authLoading } = useRequirePermission(PERMISSIONS.USERS_VIEW);
   const { user } = useAuth();
   const canManageUsers = hasPermission(user, PERMISSIONS.USERS_MANAGE);
   const [activeTab, setActiveTab] = useState<Tab>('users');
 
-  // --- users state ---
   const [users, setUsers] = useState<User[]>([]);
   const [roles, setRoles] = useState<RoleEntity[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // invite form
-  const [showForm, setShowForm] = useState(false);
-  const [newUsername, setNewUsername] = useState('');
-  const [newRole, setNewRole] = useState('viewer');
-  const [formError, setFormError] = useState('');
-  const [formLoading, setFormLoading] = useState(false);
+  // invite form visibility / result
+  const [showInviteForm, setShowInviteForm] = useState(false);
   const [invitation, setInvitation] = useState<InvitationResult | null>(null);
   const [copied, setCopied] = useState(false);
 
-  // --- roles state ---
+  // role form visibility / editing
   const [showRoleForm, setShowRoleForm] = useState(false);
   const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
-  const [roleName, setRoleName] = useState('');
-  const [roleSuperadmin, setRoleSuperadmin] = useState(false);
-  const [rolePermissions, setRolePermissions] = useState<string[]>([]);
-  const [roleFormError, setRoleFormError] = useState('');
-  const [roleFormLoading, setRoleFormLoading] = useState(false);
+  const [roleFormDefaultValues, setRoleFormDefaultValues] = useState<RoleFormValues>(EMPTY_ROLE_FORM);
   const [expandedRoleId, setExpandedRoleId] = useState<string | null>(null);
 
   const fetchUsers = async () => {
@@ -95,30 +93,6 @@ export default function UsersPage() {
     return u.role as string;
   };
 
-  // --- Users handlers ---
-
-  const handleInviteUser = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setFormLoading(true);
-    setFormError('');
-    try {
-      const data: any = await api.post('users', {
-        json: { username: newUsername, role: newRole },
-      }).json();
-      setInvitation(data);
-      setCopied(false);
-    } catch (err: any) {
-      if (err.response) {
-        const d = await err.response.json();
-        setFormError(d.message || 'Failed to create invitation');
-      } else {
-        setFormError('Failed to create invitation');
-      }
-    } finally {
-      setFormLoading(false);
-    }
-  };
-
   const getInviteLink = (token: string) => {
     if (typeof window !== 'undefined') {
       return `${window.location.origin}/invite/${token}`;
@@ -137,10 +111,7 @@ export default function UsersPage() {
 
   const handleCloseInvitation = () => {
     setInvitation(null);
-    setShowForm(false);
-    setNewUsername('');
-    setNewRole('viewer');
-    setFormError('');
+    setShowInviteForm(false);
     fetchUsers();
   };
 
@@ -178,63 +149,20 @@ export default function UsersPage() {
     }
   };
 
-  // --- Roles handlers ---
-
-  const resetRoleForm = () => {
-    setRoleName('');
-    setRoleSuperadmin(false);
-    setRolePermissions([]);
-    setEditingRoleId(null);
-    setRoleFormError('');
-  };
-
   const openCreateRole = () => {
-    resetRoleForm();
+    setEditingRoleId(null);
+    setRoleFormDefaultValues(EMPTY_ROLE_FORM);
     setShowRoleForm(true);
   };
 
   const openEditRole = (r: RoleEntity) => {
-    setRoleName(r.name);
-    setRoleSuperadmin(r.superadmin);
-    setRolePermissions([...r.permissions]);
+    setRoleFormDefaultValues({
+      name: r.name,
+      superadmin: r.superadmin,
+      permissions: [...r.permissions],
+    });
     setEditingRoleId(r.id);
     setShowRoleForm(true);
-    setRoleFormError('');
-  };
-
-  const togglePerm = (perm: string) => {
-    setRolePermissions((prev) =>
-      prev.includes(perm) ? prev.filter((p) => p !== perm) : [...prev, perm],
-    );
-  };
-
-  const handleSaveRole = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setRoleFormLoading(true);
-    setRoleFormError('');
-    try {
-      if (editingRoleId) {
-        await api.patch(`roles/${editingRoleId}`, {
-          json: { name: roleName, superadmin: roleSuperadmin, permissions: rolePermissions },
-        });
-      } else {
-        await api.post('roles', {
-          json: { name: roleName, superadmin: roleSuperadmin, permissions: rolePermissions },
-        });
-      }
-      setShowRoleForm(false);
-      resetRoleForm();
-      fetchRoles();
-    } catch (err: any) {
-      if (err.response) {
-        const d = await err.response.json();
-        setRoleFormError(d.message || 'Failed to save role');
-      } else {
-        setRoleFormError('Failed to save role');
-      }
-    } finally {
-      setRoleFormLoading(false);
-    }
   };
 
   const handleDeleteRole = async (roleId: string, name: string) => {
@@ -251,6 +179,12 @@ export default function UsersPage() {
       }
     }
   };
+
+  if (authLoading) return <PageLoading />;
+
+  if (!authorized) {
+    return <AccessDenied title="User Management" icon={<Users size={32} className="text-[var(--accent)]" />} />;
+  }
 
   if (error && loading) {
     return (
@@ -277,7 +211,7 @@ export default function UsersPage() {
         <div className="flex items-center gap-3">
           {canManageUsers && activeTab === 'users' && (
             <button
-              onClick={() => { setShowForm(!showForm); setInvitation(null); setCopied(false); }}
+              onClick={() => { setShowInviteForm(!showInviteForm); setInvitation(null); setCopied(false); }}
               className="flex items-center gap-2 text-sm text-white bg-[var(--accent)] hover:opacity-90 transition-opacity px-4 py-2 rounded-xl"
             >
               <UserPlus size={18} />
@@ -323,83 +257,42 @@ export default function UsersPage() {
       {/* ===================== USERS TAB ===================== */}
       {activeTab === 'users' && (
         <>
-          {/* Invite User Form */}
-          {showForm && (
-            <section className="mb-12 glass p-8 rounded-3xl animate-in fade-in slide-in-from-top-4 duration-300">
-              {!invitation ? (
-                <>
-                  <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
-                    <UserPlus size={20} className="text-[var(--accent)]" />
-                    Invite New User
-                  </h2>
-                  <form onSubmit={handleInviteUser} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <label className="text-sm text-slate-400">Username</label>
-                      <input required type="text"
-                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white outline-none focus:border-[var(--accent)] transition-colors"
-                        value={newUsername} onChange={e => setNewUsername(e.target.value)} placeholder="Enter username" />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-sm text-slate-400">Role</label>
-                      <select
-                        className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 text-white outline-none focus:border-[var(--accent)] transition-colors appearance-none"
-                        value={newRole} onChange={e => setNewRole(e.target.value)}
-                      >
-                        {roles.length > 0
-                          ? roles.map(r => (
-                              <option key={r.id} value={r.name}>{r.name}{r.superadmin ? ' (superadmin)' : ''}</option>
-                            ))
-                          : (
-                            <>
-                              <option value="superadmin">superadmin</option>
-                              <option value="viewer">viewer</option>
-                            </>
-                          )}
-                      </select>
-                    </div>
-                    {formError && (
-                      <div className="md:col-span-2 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">{formError}</div>
-                    )}
-                    <div className="md:col-span-2 flex justify-end gap-4 mt-2">
-                      <button type="button" onClick={() => { setShowForm(false); setFormError(''); }}
-                        className="px-6 py-2 rounded-xl text-slate-400 bg-white/5 hover:bg-white/10 transition-colors">Cancel</button>
-                      <button type="submit" disabled={formLoading}
-                        className="px-6 py-2 rounded-xl text-white bg-[var(--accent)] hover:opacity-90 transition-opacity disabled:opacity-50">
-                        {formLoading ? 'Creating...' : 'Create Invitation'}
+          {showInviteForm && (
+            !invitation ? (
+              <InviteUserForm
+                roles={roles}
+                onSuccess={(inv) => setInvitation(inv)}
+                onCancel={() => setShowInviteForm(false)}
+              />
+            ) : (
+              <section className="mb-12 glass p-8 rounded-3xl animate-in fade-in slide-in-from-top-4 duration-300">
+                <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
+                  <Link2 size={20} className="text-[var(--success)]" /> Invitation Created
+                </h2>
+                <div className="space-y-6">
+                  <div className="flex gap-6">
+                    <div><div className="text-[10px] text-slate-500 uppercase tracking-widest mb-1">Username</div><div className="text-sm font-medium text-slate-200">{invitation.username}</div></div>
+                    <div><div className="text-[10px] text-slate-500 uppercase tracking-widest mb-1">Role</div><div className="text-sm font-medium text-slate-200 capitalize">{invitation.role}</div></div>
+                    <div><div className="text-[10px] text-slate-500 uppercase tracking-widest mb-1">Expires</div><div className="text-sm font-medium text-slate-200">{new Date(invitation.expiresAt).toLocaleDateString()}</div></div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="text-[10px] text-slate-500 uppercase tracking-widest">Invitation Link</div>
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-3 font-mono text-xs text-slate-300 overflow-hidden text-ellipsis whitespace-nowrap select-all">{getInviteLink(invitation.token)}</div>
+                      <button onClick={handleCopyLink}
+                        className={`flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium transition-all ${copied ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-[var(--accent)]/10 text-[var(--accent)] border border-[var(--accent)]/30 hover:bg-[var(--accent)]/20'}`}>
+                        {copied ? <Check size={16} /> : <Copy size={16} />}
+                        {copied ? 'Copied!' : 'Copy'}
                       </button>
                     </div>
-                  </form>
-                </>
-              ) : (
-                <>
-                  <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
-                    <Link2 size={20} className="text-[var(--success)]" /> Invitation Created
-                  </h2>
-                  <div className="space-y-6">
-                    <div className="flex gap-6">
-                      <div><div className="text-[10px] text-slate-500 uppercase tracking-widest mb-1">Username</div><div className="text-sm font-medium text-slate-200">{invitation.username}</div></div>
-                      <div><div className="text-[10px] text-slate-500 uppercase tracking-widest mb-1">Role</div><div className="text-sm font-medium text-slate-200 capitalize">{invitation.role}</div></div>
-                      <div><div className="text-[10px] text-slate-500 uppercase tracking-widest mb-1">Expires</div><div className="text-sm font-medium text-slate-200">{new Date(invitation.expiresAt).toLocaleDateString()}</div></div>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="text-[10px] text-slate-500 uppercase tracking-widest">Invitation Link</div>
-                      <div className="flex items-center gap-3">
-                        <div className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-3 font-mono text-xs text-slate-300 overflow-hidden text-ellipsis whitespace-nowrap select-all">{getInviteLink(invitation.token)}</div>
-                        <button onClick={handleCopyLink}
-                          className={`flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium transition-all ${copied ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-[var(--accent)]/10 text-[var(--accent)] border border-[var(--accent)]/30 hover:bg-[var(--accent)]/20'}`}>
-                          {copied ? <Check size={16} /> : <Copy size={16} />}
-                          {copied ? 'Copied!' : 'Copy'}
-                        </button>
-                      </div>
-                      <p className="text-xs text-slate-500">Share this link with the user. They will be able to set their password and activate their account.</p>
-                    </div>
-                    <div className="flex justify-end">
-                      <button onClick={handleCloseInvitation} className="px-6 py-2 rounded-xl text-white bg-[var(--accent)] hover:opacity-90 transition-opacity">Done</button>
-                    </div>
+                    <p className="text-xs text-slate-500">Share this link with the user. They will be able to set their password and activate their account.</p>
                   </div>
-                </>
-              )}
-            </section>
+                  <div className="flex justify-end">
+                    <button onClick={handleCloseInvitation} className="px-6 py-2 rounded-xl text-white bg-[var(--accent)] hover:opacity-90 transition-opacity">Done</button>
+                  </div>
+                </div>
+              </section>
+            )
           )}
 
           {/* Users Table */}
@@ -466,66 +359,18 @@ export default function UsersPage() {
       {/* ===================== ROLES TAB ===================== */}
       {activeTab === 'roles' && (
         <>
-          {/* Role Create/Edit Form */}
           {showRoleForm && (
-            <section className="mb-12 glass p-8 rounded-3xl animate-in fade-in slide-in-from-top-4 duration-300">
-              <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
-                <Settings size={20} className="text-[var(--accent)]" />
-                {editingRoleId ? 'Edit Role' : 'Create Role'}
-              </h2>
-              <form onSubmit={handleSaveRole} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-sm text-slate-400">Role Name</label>
-                    <input required type="text"
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white outline-none focus:border-[var(--accent)] transition-colors"
-                      value={roleName} onChange={e => setRoleName(e.target.value)} placeholder="e.g. operator" />
-                  </div>
-                  <div className="flex items-end pb-2">
-                    <label className="flex items-center gap-3 cursor-pointer">
-                      <input type="checkbox" className="sr-only peer" checked={roleSuperadmin} onChange={e => { setRoleSuperadmin(e.target.checked); if (e.target.checked) setRolePermissions(ALL_PERMISSIONS); }} />
-                      <div className="w-9 h-5 bg-white/10 rounded-full peer peer-checked:bg-purple-500 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:start-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all relative" />
-                      <div>
-                        <span className="text-sm text-slate-200">Superadmin</span>
-                        <p className="text-xs text-slate-500">Grants all permissions automatically</p>
-                      </div>
-                    </label>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm text-slate-400">Permissions</label>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-64 overflow-y-auto bg-black/20 rounded-xl p-4 border border-white/5">
-                    {ALL_PERMISSIONS.map((perm) => (
-                      <label key={perm}
-                        className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-                          rolePermissions.includes(perm) ? 'bg-[var(--accent)]/10 border border-[var(--accent)]/30' : 'hover:bg-white/5 border border-transparent'
-                        }`}
-                      >
-                        <input type="checkbox" className="accent-[var(--accent)]"
-                          checked={rolePermissions.includes(perm)}
-                          onChange={() => togglePerm(perm)}
-                          disabled={roleSuperadmin} />
-                        <span className="text-xs text-slate-300 select-none">{PERMISSION_LABELS[perm as Permission] ?? perm}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                {roleFormError && (
-                  <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">{roleFormError}</div>
-                )}
-
-                <div className="flex justify-end gap-4">
-                  <button type="button" onClick={() => { setShowRoleForm(false); resetRoleForm(); }}
-                    className="px-6 py-2 rounded-xl text-slate-400 bg-white/5 hover:bg-white/10 transition-colors">Cancel</button>
-                  <button type="submit" disabled={roleFormLoading}
-                    className="px-6 py-2 rounded-xl text-white bg-[var(--accent)] hover:opacity-90 transition-opacity disabled:opacity-50">
-                    {roleFormLoading ? 'Saving...' : editingRoleId ? 'Update Role' : 'Create Role'}
-                  </button>
-                </div>
-              </form>
-            </section>
+            <RoleForm
+              editingRoleId={editingRoleId}
+              defaultValues={roleFormDefaultValues}
+              onSuccess={() => {
+                setShowRoleForm(false);
+                setEditingRoleId(null);
+                setRoleFormDefaultValues(EMPTY_ROLE_FORM);
+                fetchRoles();
+              }}
+              onCancel={() => { setShowRoleForm(false); setEditingRoleId(null); }}
+            />
           )}
 
           {/* Roles List */}
