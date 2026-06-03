@@ -4,6 +4,22 @@ import { JwtService } from '@nestjs/jwt';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator.js';
 import { Request } from 'express';
 
+export interface AuthenticatedUser {
+  id: string;
+  username?: string;
+  type: 'user' | 'machine';
+  role: string;
+  permissions: string[];
+}
+
+export interface AuthenticatedMachine {
+  machineId: string;
+  id: string;
+  type: 'machine';
+  role: string;
+  permissions: string[];
+}
+
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
   constructor(
@@ -29,13 +45,24 @@ export class JwtAuthGuard implements CanActivate {
     }
 
     try {
-      const payload = await this.jwtService.verifyAsync(token);
-      
-      // Transform payload to user object (similar to what passive strategy did)
+      const payload: any = await this.jwtService.verifyAsync(token);
+
       if (payload.machineId) {
-        request['user'] = { machineId: payload.machineId, id: payload.machineId, type: 'machine', role: payload.role || 'agent' };
+        request['user'] = {
+          machineId: payload.machineId,
+          id: payload.machineId,
+          type: 'machine',
+          role: payload.role || 'agent',
+          permissions: payload.permissions ?? [],
+        } satisfies AuthenticatedMachine;
       } else {
-        request['user'] = { id: payload.sub, username: payload.username, type: 'user', role: payload.role };
+        request['user'] = {
+          id: payload.sub,
+          username: payload.username,
+          type: 'user',
+          role: payload.role,
+          permissions: payload.permissions ?? [],
+        } satisfies AuthenticatedUser;
       }
     } catch {
       throw new UnauthorizedException('Invalid token');

@@ -1,7 +1,11 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
-import { HardDrive, Database, Server, Info, AlertCircle, Box, Tag } from 'lucide-react';
+import { HardDrive, Database, Server, Info, Box, Tag } from 'lucide-react';
+import { useRequirePermission } from '../../lib/use-require-permission';
+import { PERMISSIONS } from '../../lib/permissions';
+import PageLoading from '../components/PageLoading';
+import AccessDenied from '../components/AccessDenied';
 
 interface PvcUsage {
   name: string;
@@ -57,6 +61,7 @@ function parseKubernetesQuantity(quantity: string | undefined): number {
 import api from '../../lib/api';
 
 export default function VolumesPage() {
+  const { authorized, loading: authLoading } = useRequirePermission(PERMISSIONS.VOLUMES_VIEW);
   const [pvcs, setPvcs] = useState<PvcMetadata[]>([]);
   const [metrics, setMetrics] = useState<Metric[]>([]);
   const [loading, setLoading] = useState(true);
@@ -112,6 +117,12 @@ export default function VolumesPage() {
       };
     });
   }, [pvcs, metrics]);
+
+  if (authLoading) return <PageLoading />;
+
+  if (!authorized) {
+    return <AccessDenied title="Persistent Volumes" icon={<HardDrive size={32} className="text-[var(--accent)]" />} />;
+  }
 
   return (
     <div className="p-8 max-w-7xl mx-auto min-h-screen">
