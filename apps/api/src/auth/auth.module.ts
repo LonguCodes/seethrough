@@ -3,41 +3,65 @@ import { JwtModule } from '@nestjs/jwt';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigToken } from '@longucodes/config';
 import { AuthService } from './auth.service.js';
-import { AuthController } from './auth.controller.js';
-import { UsersController } from './users.controller.js';
-import { SsoController } from './sso.controller.js';
-import { RolesController } from './roles.controller.js';
-import { SsoService } from './sso.service.js';
+import { AuthController } from './controllers/auth.controller';
+import { UsersController } from './controllers/users.controller';
+import { RolesController } from './controllers/roles.controller';
+import { AuthMethodsController } from './controllers/auth-methods.controller';
+import { AuthMethodsService } from './auth-methods.service.js';
+import { MfaConfigsController } from './controllers/mfa-configs.controller';
+import { MfaConfigsService } from './mfa-configs.service.js';
+import { MfaController } from './controllers/mfa.controller';
+import { MfaService } from './mfa.service.js';
 import { User } from './entities/user.entity.js';
 import { Session } from './entities/session.entity.js';
 import { Invitation } from './entities/invitation.entity.js';
 import { Role } from './entities/role.entity.js';
-import { SsoConfig } from './entities/sso-config.entity.js';
-import { LocalLoginStrategy } from './strategies/local-login.strategy.js';
-import { SamlStrategy } from './strategies/saml.strategy.js';
+import { AuthMethod } from './entities/auth-method.entity.js';
+import { MfaConfig } from './entities/mfa-config.entity.js';
+import { UserMfa } from './entities/user-mfa.entity.js';
+import { PasswordStrategy } from './strategies/password.strategy.js';
 import { OidcStrategy } from './strategies/oidc.strategy.js';
+import { SamlStrategy } from './strategies/saml.strategy.js';
+import { TotpStrategy } from './strategies/mfa/totp.strategy.js';
+import { PasskeyStrategy } from './strategies/mfa/passkey.strategy.js';
 import { PermissionsGuard } from './guards/permissions.guard.js';
+import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
+import {TokenService} from "./token.service.js";
+import {AppConfig} from "../config/app.config.js";
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, Session, Invitation, Role, SsoConfig]),
+    TypeOrmModule.forFeature([User, Session, Invitation, Role, AuthMethod, MfaConfig, UserMfa]),
     JwtModule.registerAsync({
       inject: [ConfigToken],
-      useFactory: (config: any) => ({
+      useFactory: (config: AppConfig) => ({
         secret: config.jwtSecret,
         signOptions: { expiresIn: '30m' },
       }),
     }),
   ],
   providers: [
+    JwtAuthGuard,
     AuthService,
-    SsoService,
-    LocalLoginStrategy,
-    SamlStrategy,
+    AuthMethodsService,
+    MfaConfigsService,
+    MfaService,
+    PasswordStrategy,
     OidcStrategy,
+    SamlStrategy,
+    TotpStrategy,
+    PasskeyStrategy,
     PermissionsGuard,
+      TokenService,
   ],
-  controllers: [AuthController, UsersController, SsoController, RolesController],
-  exports: [AuthService, SsoService, JwtModule, PermissionsGuard],
+  controllers: [
+    AuthController,
+    UsersController,
+    RolesController,
+    AuthMethodsController,
+    MfaConfigsController,
+    MfaController,
+  ],
+  exports: [AuthService, MfaService, PermissionsGuard, JwtModule],
 })
 export class AuthModule {}

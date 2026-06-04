@@ -8,12 +8,12 @@ import {
   Param,
   UseGuards,
 } from '@nestjs/common';
-import { AuthService } from './auth.service.js';
-import { RequirePermissions } from './decorators/permissions.decorator.js';
-import { PermissionsGuard } from './guards/permissions.guard.js';
-import { PERMISSIONS } from './permissions.js';
-import { CreateRoleDto } from './dto/create-role.dto.js';
-import { UpdateRoleDto } from './dto/update-role.dto.js';
+import { AuthService } from '../auth.service.js';
+import { RequirePermissions } from '../decorators/permissions.decorator.js';
+import { PermissionsGuard } from '../guards/permissions.guard.js';
+import { PERMISSIONS } from '../permissions.js';
+import { CreateRoleDto } from '../dto/create-role.dto.js';
+import { UpdateRoleDto } from '../dto/update-role.dto.js';
 
 @Controller('roles')
 @UseGuards(PermissionsGuard)

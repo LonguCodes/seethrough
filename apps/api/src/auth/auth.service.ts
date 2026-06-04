@@ -8,7 +8,6 @@ import {
   ForbiddenException,
   BadRequestException,
 } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import { ConfigToken } from '@longucodes/config';
@@ -16,33 +15,40 @@ import { User } from './entities/user.entity.js';
 import { Session } from './entities/session.entity.js';
 import { Invitation } from './entities/invitation.entity.js';
 import { Role } from './entities/role.entity.js';
-import { SsoConfig } from './entities/sso-config.entity.js';
+import { AuthMethod } from './entities/auth-method.entity.js';
 import { LoginStrategy } from './strategies/login-strategy.interface.js';
-import { LocalLoginStrategy } from './strategies/local-login.strategy.js';
-import { SsoLoginStrategy } from './strategies/sso-login-strategy.interface.js';
-import { SamlStrategy } from './strategies/saml.strategy.js';
+import { PasswordStrategy } from './strategies/password.strategy.js';
 import { OidcStrategy } from './strategies/oidc.strategy.js';
-import { SsoService } from './sso.service.js';
+import { SamlStrategy } from './strategies/saml.strategy.js';
 import { DEFAULT_ROLES, ALL_PERMISSIONS } from './permissions.js';
+import { AuthMethodsService } from './auth-methods.service.js';
+import { MfaService, MfaChallenge } from './mfa.service.js';
 import type { AppConfig } from '../config/app.config.js';
-import type { SsoIdentity } from './auth.service.types.js';
+import {TokenService} from "./token.service.js";
+
+export interface LoginResult {
+  accessToken?: string;
+  refreshToken?: string;
+  mfaChallenge?: MfaChallenge;
+  redirectUrl?: string;
+}
 
 @Injectable()
 export class AuthService implements OnModuleInit {
   private strategies: Map<string, LoginStrategy> = new Map();
-  private ssoStrategies: Map<string, SsoLoginStrategy> = new Map();
 
   constructor(
-    private readonly jwtService: JwtService,
     @Inject(ConfigToken) private readonly config: AppConfig,
-    private readonly localStrategy: LocalLoginStrategy,
-    private readonly ssoService: SsoService,
-    private readonly samlStrategy: SamlStrategy,
-    private readonly oidcStrategy: OidcStrategy,
+     passwordStrategy: PasswordStrategy,
+     oidcStrategy: OidcStrategy,
+     samlStrategy: SamlStrategy,
+    private readonly authMethodsService: AuthMethodsService,
+    private readonly mfaService: MfaService,
+    private readonly tokenService: TokenService,
   ) {
-    this.registerStrategy(localStrategy);
-    this.registerSsoStrategy(samlStrategy);
-    this.registerSsoStrategy(oidcStrategy);
+    this.registerStrategy(passwordStrategy);
+    this.registerStrategy(oidcStrategy);
+    this.registerStrategy(samlStrategy);
   }
 
   async onModuleInit() {
@@ -122,32 +128,147 @@ export class AuthService implements OnModuleInit {
     await role.remove();
   }
 
-  // --- Auth Strategies ---
+  // --- Strategy Registry ---
 
   registerStrategy(strategy: LoginStrategy) {
     this.strategies.set(strategy.name, strategy);
   }
 
-  registerSsoStrategy(strategy: SsoLoginStrategy) {
-    this.ssoStrategies.set(strategy.name, strategy);
-  }
-
-  getSsoStrategies(): Map<string, SsoLoginStrategy> {
-    return this.ssoStrategies;
-  }
-
-  async login(strategyName: string, credentials: Record<string, any>) {
-    const strategy = this.strategies.get(strategyName);
+  private getStrategy(type: string): LoginStrategy {
+    const strategy = this.strategies.get(type);
     if (!strategy) {
-      throw new UnauthorizedException(`Strategy ${strategyName} not found`);
+      throw new BadRequestException(`Auth type '${type}' is not supported`);
+    }
+    return strategy;
+  }
+
+  // --- Unified Auth Flow ---
+
+  /**
+   * GET /auth/configurations/:id — returns public info about a method
+   */
+  async getConfiguration(configId: string): Promise<{ id: string; name: string; type: string; enabled: boolean }> {
+    const config = await AuthMethod.findOneBy({ id: configId });
+    if (!config || !config.enabled) {
+      throw new NotFoundException('Configuration not found or disabled');
+    }
+    return {
+      id: config.id,
+      name: config.name,
+      type: config.type,
+      enabled: config.enabled,
+    };
+  }
+
+  /**
+   * GET /auth/configurations — returns all active methods for login UI
+   */
+  async getActiveConfigurations(): Promise<Array<{ id: string; name: string; type: string }>> {
+    const methods = await this.authMethodsService.getActiveMethods();
+    return methods.map((m) => ({
+      id: m.id,
+      name: m.name,
+      type: m.type,
+    }));
+  }
+
+
+  async login(configId: string, credentials: Record<string, any>): Promise<LoginResult> {
+    const config = await AuthMethod.findOne({ where: { id: configId, enabled: true }, relations: ['mfaConfig'] });
+    if (!config) {
+      throw new NotFoundException('Configuration not found or disabled');
     }
 
-    const user = await strategy.authenticate(credentials);
+    const strategy = this.getStrategy(config.type);
+
+    // Try direct authentication (password)
+    const user = await strategy.authenticate(config, credentials);
+
+    if (user) {
+      // Direct auth succeeded — check MFA
+      const mfaChallenge = await this.mfaService.checkMfaRequirements(config, user.id);
+      if (mfaChallenge) {
+        return { mfaChallenge };
+      }
+      return this.tokenService.generateTokens(user);
+    }
+
+    // If authenticate returned null, check for redirect-based sign-in (OIDC/SAML)
+    const startUrl = await this.getStrategyStartUrl(config);
+    if (startUrl) {
+      return { redirectUrl: startUrl };
+    }
+
+    throw new UnauthorizedException('Invalid credentials');
+  }
+
+  private async getStrategyStartUrl(config: AuthMethod): Promise<string | null> {
+    const strategy = this.getStrategy(config.type);
+
+    // Check if strategy has a getStartUrl method
+    const startUrlFn = (strategy as any).getStartUrl;
+    if (typeof startUrlFn !== 'function') {
+      return null;
+    }
+
+    const state = crypto.randomBytes(16).toString('hex');
+    const stateWithConfig = Buffer.from(JSON.stringify({ state, configId: config.id })).toString('base64url');
+
+    const redirectUri = `${process.env.API_BASE_URL || 'http://localhost:3000'}/api/auth/callback/${config.id}`;
+    return startUrlFn.call(strategy, config, redirectUri, stateWithConfig);
+  }
+
+  /**
+   * GET /auth/callback/:configId — handle SSO callback
+   */
+  async handleCallback(configId: string, query: Record<string, any>): Promise<LoginResult> {
+    const config = await AuthMethod.findOne({ where: { id: configId, enabled: true }, relations: ['mfaConfig'] });
+    if (!config) {
+      throw new NotFoundException('Configuration not found or disabled');
+    }
+
+    const strategy = this.getStrategy(config.type);
+    const callbackFn = (strategy as any).handleCallback;
+    if (typeof callbackFn !== 'function') {
+      throw new BadRequestException(`Auth type '${config.type}' does not support callback`);
+    }
+
+    const identity = await callbackFn.call(strategy, config, query);
+    const username: string | undefined =
+      identity.email ||
+      identity.externalId ||
+      identity.attributes?.preferred_username ||
+      identity.attributes?.sub ||
+      identity.attributes?.username ||
+      identity.attributes?.uid ||
+      identity.attributes?.name;
+
+    if (!username) {
+      throw new UnauthorizedException('No identifiable user attribute received from provider');
+    }
+
+    let user = await User.findOneBy({ username });
+
     if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
+      if (!config.autoCreateUsers) {
+        throw new UnauthorizedException('User does not exist and auto-creation is disabled');
+      }
+
+      const role = await Role.findOneBy({ name: config.defaultRole || 'viewer' });
+      user = User.create({
+        username,
+        password: '',
+        role: role || undefined,
+      });
+      await user.save();
     }
 
-    return this.generateTokens(user);
+    const mfaChallenge = await this.mfaService.checkMfaRequirements(config, user.id);
+    if (mfaChallenge) {
+      return { mfaChallenge };
+    }
+
+    return this.tokenService.generateTokens(user);
   }
 
   async refresh(token: string) {
@@ -161,124 +282,35 @@ export class AuthService implements OnModuleInit {
       throw new UnauthorizedException('Invalid or expired refresh token');
     }
 
-    const tokens = await this.generateTokens(storedToken.user);
+    const tokens = await this.tokenService.generateTokens(storedToken.user);
     await storedToken.remove();
     return tokens;
   }
 
-  // --- SSO Methods ---
 
-  async getSsoAuthorizationUrl(configId: string): Promise<{ url: string }> {
-    const config = await SsoConfig.findOneBy({ id: configId });
-    if (!config || !config.enabled) {
-      throw new NotFoundException('SSO configuration not found or disabled');
-    }
-
-    const strategy = this.ssoStrategies.get(config.type);
-    if (!strategy) {
-      throw new BadRequestException(`SSO type '${config.type}' is not supported`);
-    }
-
-    const state = crypto.randomBytes(16).toString('hex');
-    const stateWithConfig = Buffer.from(JSON.stringify({ state, configId })).toString(
-      'base64url',
-    );
-    const url = strategy.getAuthorizationUrl(config, stateWithConfig);
-
-    return { url };
-  }
-
-  async handleSsoCallback(
-    configId: string,
-    query: Record<string, any>,
-  ): Promise<{ accessToken: string; refreshToken: string }> {
-    const config = await SsoConfig.findOneBy({ id: configId });
-    if (!config || !config.enabled) {
-      throw new NotFoundException('SSO configuration not found or disabled');
-    }
-
-    const strategy = this.ssoStrategies.get(config.type);
-    if (!strategy) {
-      throw new BadRequestException(`SSO type '${config.type}' is not supported`);
-    }
-
-    let identity: SsoIdentity;
-
-    if (config.type === 'oidc') {
-      const code = query.code;
-      if (!code) {
-        throw new BadRequestException('Missing authorization code');
-      }
-      identity = await (this.oidcStrategy as OidcStrategy).handleCallback(
-        config,
-        code,
-      );
-    } else if (config.type === 'saml') {
-      const samlResponse = query.SAMLResponse;
-      if (!samlResponse) {
-        throw new BadRequestException('Missing SAML response');
-      }
-      identity = {
-        externalId: query.nameid || query.subject,
-        email: query.email,
-        attributes: query,
-      };
-    } else {
-      throw new BadRequestException('Unsupported SSO type');
-    }
-
-    const result = await strategy.authenticate(config, identity);
-    if (!result.user) {
-      throw new UnauthorizedException(result.error || 'SSO authentication failed');
-    }
-
-    return this.generateTokens(result.user);
-  }
-
-  async getSsoProviders(): Promise<Array<{ id: string; name: string; type: string }>> {
-    const configs = await this.ssoService.getActiveConfigs();
-    return configs.map((c) => ({
-      id: c.id,
-      name: c.name,
-      type: c.type,
-    }));
-  }
-
-  // --- Token Generation ---
-
-  private async generateTokens(user: User) {
-    // Resolve the effective permissions: if superadmin, include all permissions
-    const role = await Role.findOneBy({ name: user.role?.name });
-    const permissions: string[] = role?.superadmin
-      ? [...ALL_PERMISSIONS]
-      : (role?.permissions ?? []);
-
-    const payload = {
-      sub: user.id,
-      username: user.username,
-      role: user.role?.name,
-      permissions,
-    };
-
-    const accessToken = this.jwtService.sign(payload, { expiresIn: '30m' });
-    const refreshTokenValue = this.jwtService.sign(payload, { expiresIn: '14d' });
-
-    const session = Session.create({
-      token: refreshTokenValue,
-      user,
-      expiresAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
-    });
-    await session.save();
-
-    return {
-      accessToken,
-      refreshToken: refreshTokenValue,
-    };
-  }
 
   // --- Default User Provisioning ---
 
   private async provisionDefaultUser() {
+    // Provision default password auth method if none exist
+    const methodCount = await AuthMethod.count();
+    if (methodCount === 0) {
+      const method = new AuthMethod();
+      method.name = 'Local Login';
+      method.type = 'password' as any;
+      method.enabled = true;
+      method.priority = 0;
+      method.autoCreateUsers = false;
+      method.defaultRole = 'viewer';
+      method.settings = {
+        type: 'password',
+        minPasswordLength: 8,
+        requireComplexity: false,
+      };
+      await method.save();
+      console.log('Provisioned default password auth method');
+    }
+
     const userCount = await User.count();
     if (userCount === 0) {
       const superadminRole = await Role.findOneBy({ name: 'superadmin' });

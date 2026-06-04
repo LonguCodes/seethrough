@@ -1,91 +1,54 @@
 import { Injectable } from '@nestjs/common';
-import { SsoConfig } from '../entities/sso-config.entity.js';
 import { User } from '../entities/user.entity.js';
-import { Role } from '../entities/role.entity.js';
-import { SsoLoginStrategy } from './sso-login-strategy.interface.js';
-import type { SsoIdentity } from '../auth.service.types.js';
+import { AuthMethod } from '../entities/auth-method.entity.js';
+import { LoginStrategy } from './login-strategy.interface.js';
+import type { OidcAuthSettings } from '../types/auth-method-settings.types.js';
+
+export interface OidcIdentity {
+  externalId?: string;
+  email?: string;
+  attributes?: Record<string, any>;
+}
 
 @Injectable()
-export class OidcStrategy implements SsoLoginStrategy {
+export class OidcStrategy implements LoginStrategy {
   name = 'oidc';
 
-  async authenticate(
-    config: SsoConfig,
-    identity: SsoIdentity,
-  ): Promise<{ user: User | null; error?: string }> {
-    const { externalId, email, attributes } = identity;
-
-    const username = email || externalId || attributes?.preferred_username || attributes?.sub;
-    if (!username) {
-      return { user: null, error: 'No identifiable user attribute received from OIDC provider' };
-    }
-
-    let user = await User.findOneBy({ username });
-
-    if (!user) {
-      if (!config.autoCreateUsers) {
-        return { user: null, error: 'User does not exist and auto-creation is disabled for this SSO configuration' };
-      }
-
-      const defaultRoleName = config.defaultRole || 'viewer';
-      let role = await Role.findOneBy({ name: defaultRoleName });
-      if (!role) {
-        role = await Role.findOneBy({ name: 'viewer' });
-      }
-      if (!role) {
-        return { user: null, error: 'Default role not found' };
-      }
-
-      user = User.create({
-        username,
-        password: '', // SSO users have no local password
-        role,
-      });
-      await user.save();
-    }
-
-    return { user };
+  async authenticate(config: AuthMethod, credentials: Record<string, any>): Promise<User | null> {
+    // OIDC requires redirect flow, not direct credential auth
+    return null;
   }
 
-  getAuthorizationUrl(config: SsoConfig, state: string): string {
-    const issuerUrl = config.oidcIssuerUrl!.replace(/\/$/, '');
-    const clientId = config.oidcClientId!;
-    const redirectUri = `${process.env.API_BASE_URL || 'http://localhost:3000'}/api/auth/sso/oidc/callback/${config.id}`;
+  getStartUrl(config: AuthMethod, redirectUri: string, state: string): string {
+    const settings = config.settings as unknown as OidcAuthSettings;
+    const issuerUrl = (settings.issuerUrl || '').replace(/\/$/, '');
+    const clientId = settings.clientId || '';
 
     const params = new URLSearchParams({
       response_type: 'code',
       client_id: clientId,
       redirect_uri: redirectUri,
-      scope: 'openid profile email',
+      scope: (settings.scopes || ['openid', 'profile', 'email']).join(' '),
       state,
     });
 
     return `${issuerUrl}/authorize?${params.toString()}`;
   }
 
-  /**
-   * Exchange the authorization code for tokens and extract identity claims.
-   * In a full implementation this would use openid-client.
-   */
-  async handleCallback(
-    config: SsoConfig,
-    code: string,
-  ): Promise<SsoIdentity> {
-    const issuerUrl = config.oidcIssuerUrl!.replace(/\/$/, '');
-    const clientId = config.oidcClientId!;
-    const clientSecret = config.oidcClientSecret!;
-    const redirectUri = `${process.env.API_BASE_URL || 'http://localhost:3000'}/api/auth/sso/oidc/callback/${config.id}`;
+  async handleCallback(config: AuthMethod, params: Record<string, any>): Promise<OidcIdentity> {
+    const settings = config.settings as unknown as OidcAuthSettings;
+    const issuerUrl = (settings.issuerUrl || '').replace(/\/$/, '');
+    const redirectUri = `${process.env.API_BASE_URL || 'http://localhost:3000'}/api/auth/callback/${config.id}`;
 
-    // Exchange code for token
     const tokenResponse = await fetch(`${issuerUrl}/token`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
         grant_type: 'authorization_code',
-        code,
+        code: params.code,
         redirect_uri: redirectUri,
-        client_id: clientId,
-        client_secret: clientSecret,
+        client_id: settings.clientId || '',
+        client_secret: settings.clientSecret || '',
       }),
     });
 
@@ -94,9 +57,8 @@ export class OidcStrategy implements SsoLoginStrategy {
     }
 
     const tokens: any = await tokenResponse.json();
-
-    // Decode ID token or fetch userinfo
     let userinfo: any = {};
+
     if (tokens.access_token) {
       const userinfoResponse = await fetch(`${issuerUrl}/userinfo`, {
         headers: { Authorization: `Bearer ${tokens.access_token}` },

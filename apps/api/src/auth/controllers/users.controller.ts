@@ -9,14 +9,14 @@ import {
   Request,
   UseGuards,
 } from '@nestjs/common';
-import { AuthService } from './auth.service.js';
-import { RequirePermissions } from './decorators/permissions.decorator.js';
-import { PermissionsGuard } from './guards/permissions.guard.js';
-import { PERMISSIONS } from './permissions.js';
-import { CreateUserDto } from './dto/create-user.dto.js';
-import { UpdateUserDto } from './dto/update-user.dto.js';
-import { AcceptInvitationDto } from './dto/accept-invitation.dto.js';
-import { Public } from './decorators/public.decorator.js';
+import { AuthService } from '../auth.service.js';
+import { RequirePermissions } from '../decorators/permissions.decorator.js';
+import { PermissionsGuard } from '../guards/permissions.guard.js';
+import { PERMISSIONS } from '../permissions.js';
+import { CreateUserDto } from '../dto/create-user.dto.js';
+import { UpdateUserDto } from '../dto/update-user.dto.js';
+import { AcceptInvitationDto } from '../dto/accept-invitation.dto.js';
+import { Public } from '../decorators/public.decorator.js';
 
 @Controller('users')
 export class UsersController {

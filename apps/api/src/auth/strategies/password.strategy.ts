@@ -1,13 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import bcrypt from 'bcrypt';
 import { User } from '../entities/user.entity.js';
+import { AuthMethod } from '../entities/auth-method.entity.js';
 import { LoginStrategy } from './login-strategy.interface.js';
 
 @Injectable()
-export class LocalLoginStrategy implements LoginStrategy {
-  name = 'local';
+export class PasswordStrategy implements LoginStrategy {
+  name = 'password';
 
-  async authenticate(credentials: Record<string, any>): Promise<User | null> {
+  async authenticate(config: AuthMethod, credentials: Record<string, any>): Promise<User | null> {
     const { username, password } = credentials;
     if (!username || !password) return null;
 

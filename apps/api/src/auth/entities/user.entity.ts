@@ -9,6 +9,7 @@ import {
 } from 'typeorm';
 import { Session } from './session.entity.js';
 import { Role } from './role.entity.js';
+import { UserMfa } from './user-mfa.entity.js';
 
 @Entity('users')
 export class User extends BaseEntity {
@@ -26,4 +27,7 @@ export class User extends BaseEntity {
 
   @OneToMany(() => Session, (session) => session.user)
   sessions: Relation<Session[]>;
+
+  @OneToMany(() => UserMfa, (mfa) => mfa.user)
+  mfaEnrollments: Relation<UserMfa[]>;
 }

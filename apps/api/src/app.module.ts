@@ -22,7 +22,10 @@ import { JwtAuthGuard } from "./auth/guards/jwt-auth.guard.js";
                 ...config.database,
                 type: 'postgres',
                 autoLoadEntities: true,
-                synchronize: true // Assuming dev environment, would use migrations in prod
+                synchronize: false,
+                migrationsRun: true,
+                migrations: ['apps/api/dist/migrations/*.js'],
+                migrationsTableName: 'migrations',
             })
         }),
         MetricsModule,
