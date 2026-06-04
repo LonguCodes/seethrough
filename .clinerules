@@ -25,3 +25,52 @@ sessions: Session[];
 ```
 
 This ensures proper type safety when working with TypeORM's lazy/loaded relations.
+
+## ActiveRecord Pattern
+
+Always use TypeORM's ActiveRecord pattern. All entities extend `BaseEntity`, giving them static methods for database operations. Use these directly on entity classes instead of injecting repositories via `@InjectRepository`.
+
+The root `TypeOrmModule.forRootAsync` already has `autoLoadEntities: true`, so `TypeOrmModule.forFeature()` is unnecessary and should NOT be used.
+
+```typescript
+// CORRECT — static methods on entity classes:
+const user = await User.findOneBy({ id: userId });
+const role = Role.create({ name: 'admin', permissions: [] });
+await role.save();
+await user.remove();
+const count = await User.count({ where: { active: true } });
+
+// For complex queries:
+const result = await UserMfa.createQueryBuilder('mfa')
+  .addSelect(['mfa.secret'])
+  .where({ id: enrollmentId })
+  .getOne();
+```
+
+```typescript
+// WRONG — do NOT inject repositories:
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+
+constructor(
+  @InjectRepository(User)
+  private readonly userRepo: Repository<User>,
+) {}
+
+// then later:
+this.userRepo.findOneBy({ id: userId });
+this.userRepo.create({ ... });
+```
+
+```typescript
+// WRONG — do NOT use TypeOrmModule.forFeature():
+import { TypeOrmModule } from '@nestjs/typeorm';
+
+@Module({
+  imports: [
+    TypeOrmModule.forFeature([User, Session, Role]),
+  ],
+})
+```
+
+This keeps the code concise and avoids unnecessary dependency injection for database operations.

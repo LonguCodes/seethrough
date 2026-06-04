@@ -1,6 +1,4 @@
 import {BadRequestException, Injectable, NotFoundException, OnModuleInit, UnauthorizedException} from '@nestjs/common';
-import {InjectRepository} from '@nestjs/typeorm';
-import {Repository} from 'typeorm';
 import crypto from 'crypto';
 import {UserMfa} from './entities/user-mfa.entity.js';
 import {MfaConfig} from './entities/mfa-config.entity.js';
@@ -52,10 +50,6 @@ export class MfaService implements OnModuleInit {
   private strategies: Map<string, MfaStrategy> = new Map();
 
   constructor(
-    @InjectRepository(UserMfa)
-    private readonly userMfaRepo: Repository<UserMfa>,
-    @InjectRepository(MfaConfig)
-    private readonly mfaConfigRepo: Repository<MfaConfig>,
     private readonly totpStrategy: TotpStrategy,
     private readonly passkeyStrategy: PasskeyStrategy,
     private readonly tokenService: TokenService,
@@ -76,7 +70,7 @@ export class MfaService implements OnModuleInit {
     const mfaConfig = authMethod.mfaConfig ;
     if (!mfaConfig.enabled) return null;
 
-    const userEnrollment = await this.userMfaRepo.findOne({
+    const userEnrollment = await UserMfa.findOne({
       where: { user: { id: userId }, mfaConfig: { id: mfaConfig.id }, enabled: true, verified: true },
     });
 
@@ -108,7 +102,7 @@ export class MfaService implements OnModuleInit {
     const user = await User.findOneBy({ id: challenge.userId });
     if (!user) throw new UnauthorizedException('User not found');
 
-    const mfaConfig = await this.mfaConfigRepo.findOneBy({ id: challenge.mfaConfigId, enabled: true });
+    const mfaConfig = await MfaConfig.findOneBy({ id: challenge.mfaConfigId, enabled: true });
     if (!mfaConfig) throw new BadRequestException('MFA configuration is not available');
 
     const enrollment = await UserMfa.createQueryBuilder('mfa')
@@ -131,17 +125,17 @@ export class MfaService implements OnModuleInit {
     if (!isValid) throw new UnauthorizedException('Invalid MFA code');
 
     enrollment.lastUsedAt = new Date();
-    await this.userMfaRepo.save(enrollment);
+    await enrollment.save();
     challengeStore.delete(challengeToken);
 
     return this.tokenService.generateTokens(user);
   }
 
   async enrollUser(userId: string, mfaConfigId: string): Promise<UserMfa> {
-    const mfaConfig = await this.mfaConfigRepo.findOneBy({ id: mfaConfigId, enabled: true });
+    const mfaConfig = await MfaConfig.findOneBy({ id: mfaConfigId, enabled: true });
     if (!mfaConfig) throw new NotFoundException('MFA configuration not found or disabled');
 
-    const existing = await this.userMfaRepo.findOne({ where: { user: { id: userId }, mfaConfig: { id: mfaConfigId } } });
+    const existing = await UserMfa.findOne({ where: { user: { id: userId }, mfaConfig: { id: mfaConfigId } } });
     if (existing) return existing;
 
     const enrollment = UserMfa.create({
@@ -186,16 +180,16 @@ export class MfaService implements OnModuleInit {
     if (!isValid) return false;
 
     enrollment.verified = true;
-    await this.userMfaRepo.save(enrollment);
+    await enrollment.save();
     return true;
   }
 
   async getUserEnrollments(userId: string): Promise<Array<UserMfa & { secret?: string }>> {
-    return this.userMfaRepo.find({where: {user: {id: userId}}, relations: ['mfaConfig']});
+    return UserMfa.find({where: {user: {id: userId}}, relations: ['mfaConfig']});
   }
 
   async getPasskeyRegistrationOptions(userId: string, username: string, mfaConfigId: string): Promise<any> {
-    const mfaConfig = await this.mfaConfigRepo.findOneBy({ id: mfaConfigId, enabled: true });
+    const mfaConfig = await MfaConfig.findOneBy({ id: mfaConfigId, enabled: true });
     if (!mfaConfig) throw new NotFoundException('MFA configuration not found or disabled');
     return this.passkeyStrategy.generateRegistrationOptions(userId, username, mfaConfig);
   }
@@ -204,10 +198,10 @@ export class MfaService implements OnModuleInit {
     const credential = await this.passkeyStrategy.verifyRegistration(userId, response);
     if (!credential) throw new BadRequestException('Passkey registration verification failed');
 
-    const mfaConfig = await this.mfaConfigRepo.findOneBy({ id: mfaConfigId, enabled: true });
+    const mfaConfig = await MfaConfig.findOneBy({ id: mfaConfigId, enabled: true });
     if (!mfaConfig) throw new NotFoundException('MFA configuration not found or disabled');
 
-    const enrollment = this.userMfaRepo.create({
+    const enrollment = UserMfa.create({
       user: { id: userId } as any,
       mfaConfig,
       type: 'passkey' as any,
@@ -218,7 +212,7 @@ export class MfaService implements OnModuleInit {
       destination: credential.transports?.join(','),
     });
 
-    return this.userMfaRepo.save(enrollment);
+    return enrollment.save();
   }
 
   async getPasskeyAuthenticateOptions(challengeToken: string): Promise<any> {
@@ -228,10 +222,10 @@ export class MfaService implements OnModuleInit {
       throw new BadRequestException('Invalid or expired challenge token');
     }
 
-    const mfaConfig = await this.mfaConfigRepo.findOneBy({ id: challenge.mfaConfigId, enabled: true });
+    const mfaConfig = await MfaConfig.findOneBy({ id: challenge.mfaConfigId, enabled: true });
     if (!mfaConfig) throw new BadRequestException('Passkey MFA is not configured');
 
-    const enrollments = await this.userMfaRepo.find({
+    const enrollments = await UserMfa.find({
       where: { user: { id: challenge.userId }, mfaConfig: { id: mfaConfig.id }, enabled: true, verified: true },
     });
 
@@ -248,8 +242,8 @@ export class MfaService implements OnModuleInit {
   }
 
   async removeEnrollment(userId: string, enrollmentId: string): Promise<void> {
-    const enrollment = await this.userMfaRepo.findOne({ where: { id: enrollmentId, user: { id: userId } } });
+    const enrollment = await UserMfa.findOne({ where: { id: enrollmentId, user: { id: userId } } });
     if (!enrollment) throw new NotFoundException('Enrollment not found');
-    await this.userMfaRepo.remove(enrollment);
+    await enrollment.remove();
   }
 }
