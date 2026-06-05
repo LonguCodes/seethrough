@@ -1,6 +1,7 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn, UpdateDateColumn, BaseEntity, type Relation } from 'typeorm';
+
 import { MfaConfig } from './mfa-config.entity.js';
-import { AuthMethodType } from '../types/auth-method-type.js';
+import type { AuthMethodType } from '../types/auth-method-type.js';
 
 @Entity('auth_methods')
 export class AuthMethod extends BaseEntity {

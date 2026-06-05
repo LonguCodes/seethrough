@@ -1,4 +1,4 @@
-import { AlertScope } from '../alert.enums.js';
+import type { AlertScope } from '../alert.enums.js';
 import type { NodeMetricData, PodInfoData, PvcInfoData, ClusterInfoData, TargetItem } from './target-data.types.js';
 
 export type TargetDataType = NodeMetricData | PodInfoData | PvcInfoData;

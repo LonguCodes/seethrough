@@ -1,13 +1,16 @@
-import { DynamicModule, Module } from "@nestjs/common";
-import { TypeOrmModule } from "@nestjs/typeorm";
 import { ConfigModule, ConfigToken } from "@longucodes/config";
-import { AppConfig, ConfigSchema } from "./config/app.config.js";
-import { MetricsModule } from "./metrics/metrics.module.js";
-import { ClusterModule } from "./cluster/cluster.module.js";
+import type { DynamicModule} from "@nestjs/common";
+import { Module } from "@nestjs/common";
+import { APP_GUARD } from "@nestjs/core";
+import { TypeOrmModule } from "@nestjs/typeorm";
+
 import { AlertsModule } from "./alerts/alerts.module.js";
 import { AuthModule } from "./auth/auth.module.js";
-import { APP_GUARD } from "@nestjs/core";
 import { JwtAuthGuard } from "./auth/guards/jwt-auth.guard.js";
+import { ClusterModule } from "./cluster/cluster.module.js";
+import { ConfigSchema } from "./config/app.config.js";
+import type { AppConfig} from "./config/app.config.js";
+import { MetricsModule } from "./metrics/metrics.module.js";
 
 @Module({
     imports: [

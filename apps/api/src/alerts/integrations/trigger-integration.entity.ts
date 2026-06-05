@@ -1,4 +1,5 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn, BaseEntity, type Relation } from 'typeorm';
+
 import { AlertTrigger } from '../alert-trigger.entity.js';
 import { AlertIntegration } from './integration.entity.js';
 

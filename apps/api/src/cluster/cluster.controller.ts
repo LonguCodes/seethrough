@@ -1,5 +1,6 @@
 import { Controller, Post, Body, Get, Param } from '@nestjs/common';
-import { ClusterService } from './cluster.service.js';
+
+import type { ClusterService } from './cluster.service.js';
 
 @Controller('cluster-info')
 export class ClusterController {

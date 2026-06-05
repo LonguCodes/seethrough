@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { AlertTarget } from './target.interface.js';
+
+import type { AlertTarget } from './target.interface.js';
 import { AlertScope } from '../alert.enums.js';
-import { TriggerProperty } from './trigger-property.decorator.js';
 import type { DeploymentInfoData, ClusterInfoData, NodeMetricData } from './target-data.types.js';
+import { TriggerProperty } from './trigger-property.decorator.js';
 
 @Injectable()
 export class DeploymentTarget implements AlertTarget {

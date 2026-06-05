@@ -7,8 +7,9 @@ import {
   BaseEntity,
   type Relation,
 } from 'typeorm';
-import { Session } from './session.entity.js';
+
 import { Role } from './role.entity.js';
+import { Session } from './session.entity.js';
 import { UserMfa } from './user-mfa.entity.js';
 
 @Entity('users')

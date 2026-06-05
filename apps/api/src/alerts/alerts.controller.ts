@@ -9,12 +9,13 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { AlertsService } from './alerts.service.js';
+
 import { AlertStatus } from './alert.enums.js';
-import { GetAlertsQueryDto } from './dto/get-alerts-query.dto.js';
-import { CreateTriggerDto, UpdateTriggerDto } from './dto/create-trigger.dto.js';
-import { CreateIntegrationDto, UpdateIntegrationDto } from './dto/integration.dto.js';
-import { IntegrationService } from './integrations/integration.service.js';
+import type { AlertsService } from './alerts.service.js';
+import type { CreateTriggerDto, UpdateTriggerDto } from './dto/create-trigger.dto.js';
+import type { GetAlertsQueryDto } from './dto/get-alerts-query.dto.js';
+import type { CreateIntegrationDto, UpdateIntegrationDto } from './dto/integration.dto.js';
+import type { IntegrationService } from './integrations/integration.service.js';
 import { RequirePermissions } from '../auth/decorators/permissions.decorator.js';
 import { PermissionsGuard } from '../auth/guards/permissions.guard.js';
 import { PERMISSIONS } from '../auth/permissions.js';

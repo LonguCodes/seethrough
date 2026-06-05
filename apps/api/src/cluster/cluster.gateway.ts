@@ -1,14 +1,15 @@
+import { Logger } from '@nestjs/common';
+import type {
+  OnGatewayConnection,
+  OnGatewayDisconnect} from '@nestjs/websockets';
 import {
   WebSocketGateway,
   WebSocketServer,
   SubscribeMessage,
   MessageBody,
-  ConnectedSocket,
-  OnGatewayConnection,
-  OnGatewayDisconnect,
+  ConnectedSocket
 } from '@nestjs/websockets';
-import { Server, Socket } from 'socket.io';
-import { Logger } from '@nestjs/common';
+import type { Server, Socket } from 'socket.io';
 
 @WebSocketGateway(3001, {
   cors: {

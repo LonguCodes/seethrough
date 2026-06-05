@@ -1,4 +1,5 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, BaseEntity } from 'typeorm';
+
 import { AlertScope } from './alert.enums.js';
 
 @Entity('alert_triggers')

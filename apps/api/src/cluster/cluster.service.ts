@@ -1,5 +1,5 @@
 import { Injectable, Inject } from '@nestjs/common';
-import { Redis } from 'ioredis';
+import type { Redis } from 'ioredis';
 
 @Injectable()
 export class ClusterService {

@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { AlertTarget } from './target.interface.js';
+
+import type { AlertTarget } from './target.interface.js';
 import { getTriggerProperties } from './trigger-property.decorator.js';
 
 @Injectable()

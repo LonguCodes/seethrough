@@ -1,12 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { AlertIntegration } from './integration.entity.js';
-import { TriggerIntegration } from './trigger-integration.entity.js';
-import { IntegrationChannel, IntegrationMessagePayload } from './integration-channel.interface.js';
+
+import { createDiscordChannel } from './channels/discord.channel.js';
 import { createSlackChannel } from './channels/slack.channel.js';
 import { createTeamsChannel } from './channels/teams.channel.js';
-import { createDiscordChannel } from './channels/discord.channel.js';
 import { createWebhookChannel } from './channels/webhook.channel.js';
-import { CreateIntegrationDto, UpdateIntegrationDto } from '../dto/integration.dto.js';
+import type { IntegrationChannel, IntegrationMessagePayload } from './integration-channel.interface.js';
+import { AlertIntegration } from './integration.entity.js';
+import { TriggerIntegration } from './trigger-integration.entity.js';
+import type { CreateIntegrationDto, UpdateIntegrationDto } from '../dto/integration.dto.js';
 
 @Injectable()
 export class IntegrationService {

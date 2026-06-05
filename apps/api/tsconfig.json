@@ -1,7 +1,8 @@
 {
   "compilerOptions": {
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "esModuleInterop": true,
     "resolveJsonModule": true,
     "declaration": true,
     "removeComments": true,

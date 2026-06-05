@@ -6,12 +6,13 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build && tsc -p tsconfig.migrations.json",
-    "build:migrations": "tsc -p tsconfig.migrations.json"
+    "build:migrations": "tsc -p tsconfig.migrations.json",
+    "lint": "eslint ."
   },
   "dependencies": {
     "@longucodes/config": "^1.1.17",
     "@nestjs/common": "^11.1.6",
-    "@nestjs/core": "^11.1.6",
+    "@nestjs/core": "11.1.18",
     "@nestjs/jwt": "^11.0.2",
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^11.1.6",
@@ -41,10 +42,12 @@
   },
   "devDependencies": {
     "@esbuild-plugins/tsconfig-paths": "^0.1.2",
+    "@repo/eslint-config": "*",
     "@types/bcrypt": "^6.0.0",
     "esbuild": "^0.25.10",
     "esbuild-decorators": "^1.0.0",
     "esbuild-fix-imports-plugin": "^1.0.22",
+    "eslint": "^9.34.0",
     "typescript": "^5.9.3",
     "vite": "^7.1.9",
     "vite-plugin-node": "^7.0.0"

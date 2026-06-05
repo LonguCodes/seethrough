@@ -1,9 +1,10 @@
 import { Controller, Post, Body, Request, Get, Param, Query, Res } from '@nestjs/common';
-import { AuthService } from '../auth.service.js';
-import type { LoginResult } from '../auth.service.js';
-import { Public } from '../decorators/public.decorator.js';
-import { RefreshDto } from '../dto/refresh.dto.js';
 import type { Request as ExpressRequest, Response } from 'express';
+
+import { Public } from '../decorators/public.decorator.js';
+import type { RefreshDto } from '../dto/refresh.dto.js';
+import type { AuthService , LoginResult } from '../services/auth.service';
+
 
 @Controller('auth')
 export class AuthController {

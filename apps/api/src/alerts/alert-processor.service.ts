@@ -1,16 +1,17 @@
-import { Injectable, Logger, Inject, OnModuleInit } from '@nestjs/common';
-import { AlertsService } from './alerts.service.js';
-import { ClusterService } from '../cluster/cluster.service.js';
-import { MetricsService } from '../metrics/metrics.service.js';
-import { ConditionEvaluator, ConditionConfig } from './evaluators/condition-evaluator.service.js';
-import { TargetRegistry } from './targets/target.registry.js';
-import { AlertScope } from './alert.enums.js';
-import { AlertStatus } from './alert.enums.js';
+import type { OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, Inject } from '@nestjs/common';
 import { interval } from 'rxjs';
+
+import { AlertScope , AlertStatus } from './alert.enums.js';
+import type { AlertsService } from './alerts.service.js';
+import type { ClusterService } from '../cluster/cluster.service.js';
+import type { MetricsService } from '../metrics/metrics.service.js';
+import type { ConditionEvaluator, ConditionConfig } from './evaluators/condition-evaluator.service.js';
+import type { IntegrationService } from './integrations/integration.service.js';
+import type { NodeMetricData, ClusterInfoData, TargetItem } from './targets/target-data.types.js';
+import type { TargetRegistry } from './targets/target.registry.js';
 import { METRICS_STORAGE_TOKEN } from '../metrics/strategies/metrics-storage.interface.js';
 import type { IMetricsStorage } from '../metrics/strategies/metrics-storage.interface.js';
-import type { NodeMetricData, ClusterInfoData, TargetItem } from './targets/target-data.types.js';
-import { IntegrationService } from './integrations/integration.service.js';
 
 @Injectable()
 export class AlertProcessorService implements OnModuleInit {

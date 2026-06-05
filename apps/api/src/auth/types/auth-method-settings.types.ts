@@ -1,4 +1,4 @@
-import { AuthMethodType } from './auth-method-type.js';
+import type { AuthMethodType } from './auth-method-type.js';
 
 export interface PasswordAuthSettings {
   type: AuthMethodType.PASSWORD;

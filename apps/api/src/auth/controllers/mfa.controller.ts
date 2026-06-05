@@ -1,9 +1,11 @@
 import { Controller, Post, Get, Delete, Body, Param, Request, UseGuards } from '@nestjs/common';
-import { MfaService } from '../mfa.service.js';
-import { VerifyMfaDto } from '../dto/verify-mfa.dto.js';
-import { Public } from '../decorators/public.decorator.js';
-import { JwtAuthGuard } from '../guards/jwt-auth.guard.js';
 import type { Request as ExpressRequest } from 'express';
+
+import { Public } from '../decorators/public.decorator.js';
+import type { VerifyMfaDto } from '../dto/verify-mfa.dto.js';
+import { JwtAuthGuard } from '../guards/jwt-auth.guard.js';
+import type { MfaService } from '../services/mfa.service';
+
 
 @Controller('mfa')
 export class MfaController {

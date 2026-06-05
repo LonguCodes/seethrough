@@ -1,10 +1,11 @@
+import { ConfigToken } from '@longucodes/config';
 import { Module } from '@nestjs/common';
-import { ClusterService } from './cluster.service.js';
+import { Redis } from 'ioredis';
+
 import { ClusterController } from './cluster.controller.js';
 import { ClusterGateway } from './cluster.gateway.js';
-import { Redis } from 'ioredis';
-import { ConfigToken } from '@longucodes/config';
-import { AppConfig } from '../config/app.config.js';
+import { ClusterService } from './cluster.service.js';
+import type { AppConfig } from '../config/app.config.js';
 
 @Module({
   providers: [

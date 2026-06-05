@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import type { MigrationInterface, QueryRunner } from 'typeorm';
 
 /**
  * Migration matching the initial alerts commit (3a1a640 feat: new layout, PVC monitoring,

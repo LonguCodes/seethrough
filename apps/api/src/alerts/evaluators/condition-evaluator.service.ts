@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { TargetRegistry } from '../targets/target.registry.js';
+
+import type { ConditionValue, SingleConditionValue, RangeConditionValue, InConditionValue } from './condition-value.types.js';
+import type { TargetRegistry } from '../targets/target.registry.js';
 import { getTriggerProperties } from '../targets/trigger-property.decorator.js';
 import type { ConditionType, TriggerPropertyMetadata } from '../targets/trigger-property.decorator.js';
-import type { ConditionValue, SingleConditionValue, RangeConditionValue, InConditionValue } from './condition-value.types.js';
 
 export interface ConditionConfig {
   targetType: string;

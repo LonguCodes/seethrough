@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import bcrypt from 'bcrypt';
+
+import type { LoginStrategy } from './login-strategy.interface.js';
+import type { AuthMethod } from '../entities/auth-method.entity.js';
 import { User } from '../entities/user.entity.js';
-import { AuthMethod } from '../entities/auth-method.entity.js';
-import { LoginStrategy } from './login-strategy.interface.js';
 
 @Injectable()
 export class PasswordStrategy implements LoginStrategy {

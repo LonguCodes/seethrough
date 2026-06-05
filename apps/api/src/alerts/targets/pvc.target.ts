@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { AlertTarget } from './target.interface.js';
+
+import type { AlertTarget } from './target.interface.js';
 import { AlertScope } from '../alert.enums.js';
-import { TriggerProperty } from './trigger-property.decorator.js';
 import type { PvcInfoData, ClusterInfoData, NodeMetricData, PvcUsageEntry } from './target-data.types.js';
+import { TriggerProperty } from './trigger-property.decorator.js';
 
 function parseKubernetesQuantity(quantity: string | undefined): number {
   if (!quantity) return 0;

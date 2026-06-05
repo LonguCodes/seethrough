@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { TriggerStrategy } from './trigger-strategy.interface.js';
+
+import type { TriggerStrategy } from './trigger-strategy.interface.js';
 import { AlertScope, TargetType } from '../alert.enums.js';
-import { PvcData } from './scope-data.types.js';
+import type { PvcData } from './scope-data.types.js';
 
 @Injectable()
 export class PvcStatusStrategy implements TriggerStrategy<PvcData, {}> {

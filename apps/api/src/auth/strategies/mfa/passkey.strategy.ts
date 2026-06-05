@@ -5,9 +5,10 @@ import {
   generateAuthenticationOptions,
   verifyAuthenticationResponse,
 } from '@simplewebauthn/server';
-import { MfaStrategy } from './mfa-strategy.interface.js';
-import { UserMfa } from '../../entities/user-mfa.entity.js';
-import { MfaConfig } from '../../entities/mfa-config.entity.js';
+
+import type { MfaStrategy } from './mfa-strategy.interface.js';
+import type { MfaConfig } from '../../entities/mfa-config.entity.js';
+import type { UserMfa } from '../../entities/user-mfa.entity.js';
 import type { PasskeySettings } from '../../types/mfa-method-settings.types.js';
 
 // In-memory store for challenges (production: use Redis)

@@ -1,4 +1,5 @@
 import { IsString, IsEnum, IsOptional, IsBoolean, IsNumber, IsObject, IsArray, Min } from 'class-validator';
+
 import { AlertScope } from '../alert.enums.js';
 
 export class CreateTriggerDto {

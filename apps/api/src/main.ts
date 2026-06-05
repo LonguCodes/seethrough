@@ -1,7 +1,9 @@
+import type { LogLevel} from "@nestjs/common";
+import { ValidationPipe } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
-import { LogLevel, ValidationPipe } from "@nestjs/common";
-import { setupSwagger } from "./swagger.js";
+
 import { AppModule } from "./app.module.js";
+import { setupSwagger } from "./swagger.js";
 
 async function bootstrap() {
   const allLevels: LogLevel[] = ['fatal', 'error', 'warn', 'log', 'debug', 'verbose'];

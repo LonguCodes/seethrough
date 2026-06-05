@@ -1,10 +1,11 @@
 import { Controller, Get, Post, Patch, Delete, Body, Param, UseGuards } from '@nestjs/common';
-import { AuthMethodsService } from '../auth-methods.service.js';
-import { CreateAuthMethodDto } from '../dto/create-auth-method.dto.js';
-import { UpdateAuthMethodDto } from '../dto/update-auth-method.dto.js';
+
 import { RequirePermissions } from '../decorators/permissions.decorator.js';
+import type { CreateAuthMethodDto } from '../dto/create-auth-method.dto.js';
+import type { UpdateAuthMethodDto } from '../dto/update-auth-method.dto.js';
 import { PermissionsGuard } from '../guards/permissions.guard.js';
 import { PERMISSIONS } from '../permissions.js';
+import type { AuthMethodsService } from '../services/auth-methods.service';
 
 @Controller('auth-methods')
 @UseGuards(PermissionsGuard)

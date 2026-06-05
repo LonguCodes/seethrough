@@ -1,8 +1,9 @@
 import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
-import { AuthMethod } from './entities/auth-method.entity.js';
-import { MfaConfig } from './entities/mfa-config.entity.js';
-import { CreateAuthMethodDto } from './dto/create-auth-method.dto.js';
-import { UpdateAuthMethodDto } from './dto/update-auth-method.dto.js';
+
+import type { CreateAuthMethodDto } from '../dto/create-auth-method.dto.js';
+import type { UpdateAuthMethodDto } from '../dto/update-auth-method.dto.js';
+import { AuthMethod } from '../entities/auth-method.entity.js';
+import { MfaConfig } from '../entities/mfa-config.entity.js';
 
 @Injectable()
 export class AuthMethodsService {

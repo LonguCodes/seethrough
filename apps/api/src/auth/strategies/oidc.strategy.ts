@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { User } from '../entities/user.entity.js';
-import { AuthMethod } from '../entities/auth-method.entity.js';
-import { LoginStrategy } from './login-strategy.interface.js';
+
+import type { LoginStrategy } from './login-strategy.interface.js';
+import type { AuthMethod } from '../entities/auth-method.entity.js';
+import type { User } from '../entities/user.entity.js';
 import type { OidcAuthSettings } from '../types/auth-method-settings.types.js';
 
 export interface OidcIdentity {

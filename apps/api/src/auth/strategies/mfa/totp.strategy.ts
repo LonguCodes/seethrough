@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import * as OTPAuth from 'otpauth';
-import { MfaStrategy } from './mfa-strategy.interface.js';
-import { UserMfa } from '../../entities/user-mfa.entity.js';
-import { MfaConfig } from '../../entities/mfa-config.entity.js';
+
+import type { MfaStrategy } from './mfa-strategy.interface.js';
+import type { MfaConfig } from '../../entities/mfa-config.entity.js';
+import type { UserMfa } from '../../entities/user-mfa.entity.js';
 import type { TotpSettings } from '../../types/mfa-method-settings.types.js';
 
 @Injectable()

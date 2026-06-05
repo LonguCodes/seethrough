@@ -1,9 +1,10 @@
 import { Controller, Post, Body, Get, Param, Request } from '@nestjs/common';
-import { MetricsService } from './metrics.service.js';
-import { MetricsGateway } from './metrics.gateway.js';
-import { IsNumber, IsOptional, IsArray, ValidateNested, IsString } from 'class-validator';
 import { Type } from 'class-transformer';
-import { Request as ExpressRequest } from 'express';
+import { IsNumber, IsOptional, IsArray, ValidateNested, IsString } from 'class-validator';
+import type { Request as ExpressRequest } from 'express';
+
+import type { MetricsGateway } from './metrics.gateway.js';
+import type { MetricsService } from './metrics.service.js';
 
 class PvcUsageDto {
   @IsString()

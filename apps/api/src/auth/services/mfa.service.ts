@@ -1,13 +1,17 @@
-import {BadRequestException, Injectable, NotFoundException, OnModuleInit, UnauthorizedException} from '@nestjs/common';
 import crypto from 'crypto';
-import {UserMfa} from './entities/user-mfa.entity.js';
-import {MfaConfig} from './entities/mfa-config.entity.js';
-import {User} from './entities/user.entity.js';
-import {AuthMethod} from './entities/auth-method.entity.js';
-import {MfaStrategy} from './strategies/mfa/mfa-strategy.interface.js';
-import {TotpStrategy} from './strategies/mfa/totp.strategy.js';
-import {PasskeyStrategy} from './strategies/mfa/passkey.strategy.js';
-import {TokenService} from "./token.service.js";
+
+import type { OnModuleInit} from '@nestjs/common';
+import {BadRequestException, Injectable, NotFoundException, UnauthorizedException} from '@nestjs/common';
+
+
+import type {TokenService} from "./token.service.js";
+import type {AuthMethod} from '../entities/auth-method.entity.js';
+import {MfaConfig} from '../entities/mfa-config.entity.js';
+import {UserMfa} from '../entities/user-mfa.entity.js';
+import {User} from '../entities/user.entity.js';
+import type {MfaStrategy} from '../strategies/mfa/mfa-strategy.interface.js';
+import type {PasskeyStrategy} from '../strategies/mfa/passkey.strategy.js';
+import type {TotpStrategy} from '../strategies/mfa/totp.strategy.js';
 
 const ENCRYPTION_ALGORITHM = 'aes-256-cbc';
 const IV_LENGTH = 16;

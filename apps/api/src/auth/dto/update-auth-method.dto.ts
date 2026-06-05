@@ -1,4 +1,5 @@
 import { IsString, IsEnum, IsBoolean, IsOptional, IsNumber, IsObject } from 'class-validator';
+
 import { AuthMethodType } from '../types/auth-method-type.js';
 
 export class UpdateAuthMethodDto {

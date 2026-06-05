@@ -1,4 +1,5 @@
 import { IsString, IsEnum, IsBoolean, IsOptional, IsObject } from 'class-validator';
+
 import { MfaType } from '../types/mfa-method-settings.types.js';
 
 export class UpdateMfaConfigDto {

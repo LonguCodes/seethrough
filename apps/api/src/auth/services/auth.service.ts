@@ -1,30 +1,33 @@
+import crypto from 'crypto';
+
+import { ConfigToken } from '@longucodes/config';
+import type {
+  OnModuleInit} from '@nestjs/common';
 import {
   Injectable,
   UnauthorizedException,
   Inject,
-  OnModuleInit,
   ConflictException,
   NotFoundException,
   ForbiddenException,
   BadRequestException,
 } from '@nestjs/common';
 import bcrypt from 'bcrypt';
-import crypto from 'crypto';
-import { ConfigToken } from '@longucodes/config';
-import { User } from './entities/user.entity.js';
-import { Session } from './entities/session.entity.js';
-import { Invitation } from './entities/invitation.entity.js';
-import { Role } from './entities/role.entity.js';
-import { AuthMethod } from './entities/auth-method.entity.js';
-import { LoginStrategy } from './strategies/login-strategy.interface.js';
-import { PasswordStrategy } from './strategies/password.strategy.js';
-import { OidcStrategy } from './strategies/oidc.strategy.js';
-import { SamlStrategy } from './strategies/saml.strategy.js';
-import { DEFAULT_ROLES, ALL_PERMISSIONS } from './permissions.js';
-import { AuthMethodsService } from './auth-methods.service.js';
-import { MfaService, MfaChallenge } from './mfa.service.js';
-import type { AppConfig } from '../config/app.config.js';
-import {TokenService} from "./token.service.js";
+
+import type { AuthMethodsService } from './auth-methods.service.js';
+import type { MfaService, MfaChallenge } from './mfa.service.js';
+import type {TokenService} from "./token.service.js";
+import type { AppConfig } from '../../config/app.config.js';
+import { AuthMethod } from '../entities/auth-method.entity.js';
+import { Invitation } from '../entities/invitation.entity.js';
+import { Role } from '../entities/role.entity.js';
+import { Session } from '../entities/session.entity.js';
+import { User } from '../entities/user.entity.js';
+import { DEFAULT_ROLES, ALL_PERMISSIONS } from '../permissions.js';
+import type { LoginStrategy } from '../strategies/login-strategy.interface.js';
+import type { OidcStrategy } from '../strategies/oidc.strategy.js';
+import type { PasswordStrategy } from '../strategies/password.strategy.js';
+import type { SamlStrategy } from '../strategies/saml.strategy.js';
 
 export interface LoginResult {
   accessToken?: string;

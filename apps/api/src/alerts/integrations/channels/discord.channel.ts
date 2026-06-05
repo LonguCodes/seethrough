@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { IntegrationChannel, IntegrationMessagePayload } from '../integration-channel.interface.js';
+
+import type { IntegrationChannel, IntegrationMessagePayload } from '../integration-channel.interface.js';
 
 @Injectable()
 export class DiscordChannel implements IntegrationChannel {

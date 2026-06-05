@@ -1,5 +1,5 @@
-import { UserMfa } from '../../entities/user-mfa.entity.js';
-import { MfaConfig } from '../../entities/mfa-config.entity.js';
+import type { MfaConfig } from '../../entities/mfa-config.entity.js';
+import type { UserMfa } from '../../entities/user-mfa.entity.js';
 
 export interface MfaStrategy {
   /** The MFA type name matching MfaType enum values */

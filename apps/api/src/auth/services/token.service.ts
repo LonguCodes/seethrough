@@ -1,9 +1,10 @@
 import {Injectable} from "@nestjs/common";
-import {ALL_PERMISSIONS} from "./permissions.js";
-import {User} from "./entities/user.entity.js";
-import {Role} from "./entities/role.entity.js";
-import {JwtService} from "@nestjs/jwt";
-import {Session} from "./entities/session.entity.js";
+import type {JwtService} from "@nestjs/jwt";
+
+import {Role} from "../entities/role.entity.js";
+import {Session} from "../entities/session.entity.js";
+import type {User} from "../entities/user.entity.js";
+import {ALL_PERMISSIONS} from "../permissions.js";
 
 @Injectable()
 export class TokenService {

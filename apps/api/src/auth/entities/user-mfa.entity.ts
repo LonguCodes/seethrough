@@ -1,7 +1,8 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, UpdateDateColumn, BaseEntity, type Relation } from 'typeorm';
-import { User } from './user.entity.js';
+
 import { MfaConfig } from './mfa-config.entity.js';
-import { MfaType } from '../types/mfa-method-settings.types.js';
+import { User } from './user.entity.js';
+import type { MfaType } from '../types/mfa-method-settings.types.js';
 
 @Entity('user_mfa_enrollments')
 export class UserMfa extends BaseEntity {

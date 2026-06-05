@@ -1,11 +1,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { shake } from "radash";
+
 import { AlertTrigger } from './alert-trigger.entity.js';
 import { Alert } from './alert.entity.js';
 import { AlertStatus } from './alert.enums.js';
-import { CreateTriggerDto, UpdateTriggerDto } from './dto/create-trigger.dto.js';
-import { TargetRegistry } from './targets/target.registry.js';
-import { IntegrationService } from './integrations/integration.service.js';
-import { shake } from "radash";
+import type { CreateTriggerDto, UpdateTriggerDto } from './dto/create-trigger.dto.js';
+import type { IntegrationService } from './integrations/integration.service.js';
+import type { TargetRegistry } from './targets/target.registry.js';
 
 @Injectable()
 export class AlertsService {
