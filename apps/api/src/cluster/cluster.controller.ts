@@ -1,6 +1,7 @@
 import { Controller, Post, Body, Get, Param } from '@nestjs/common';
 
-import type { ClusterService } from './cluster.service.js';
+import { ClusterService } from './cluster.service.js';
+import type { ClusterInfoData } from '../alerts/targets/target-data.types.js';
 
 @Controller('cluster-info')
 export class ClusterController {
@@ -9,7 +10,7 @@ export class ClusterController {
   ) { }
 
   @Post()
-  async updateClusterInfo(@Body() data: any) {
+  async updateClusterInfo(@Body() data: ClusterInfoData) {
     return this.clusterService.saveClusterInfo(data);
   }
 

@@ -14,7 +14,7 @@ export class AlertIntegration extends BaseEntity {
   type: IntegrationType;
 
   @Column('jsonb')
-  config: Record<string, any>;
+  config: Record<string, unknown>;
 
   @Column({ default: false })
   sendAllAlerts: boolean;

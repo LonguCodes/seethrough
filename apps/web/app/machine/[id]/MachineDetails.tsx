@@ -1,7 +1,15 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
-import { io } from 'socket.io-client';
+
+import {
+  ArrowLeft,
+  Cpu,
+  Database,
+  HardDrive,
+  Server,
+  Activity,
+} from 'lucide-react';
 import Link from 'next/link';
 import {
   LineChart,
@@ -12,18 +20,13 @@ import {
   Tooltip,
   ResponsiveContainer
 } from 'recharts';
-import {
-  ArrowLeft,
-  Cpu,
-  Database,
-  HardDrive,
-  Server,
-  Activity,
-} from 'lucide-react';
-import { useRequirePermission } from '../../../lib/use-require-permission';
+import { io } from 'socket.io-client';
+
+import api from '../../../lib/api';
 import { PERMISSIONS } from '../../../lib/permissions';
-import PageLoading from '../../components/PageLoading';
+import { useRequirePermission } from '../../../lib/use-require-permission';
 import AccessDenied from '../../components/AccessDenied';
+import PageLoading from '../../components/PageLoading';
 
 interface Metric {
   machineId: string;
@@ -38,7 +41,6 @@ interface MachineDetailsProps {
   apiUrl: string;
 }
 
-import api from '../../../lib/api';
 
 export default function MachineDetails({ id, apiUrl }: MachineDetailsProps) {
   const { authorized, loading: authLoading } = useRequirePermission(PERMISSIONS.CLUSTER_VIEW);

@@ -36,7 +36,7 @@ async function bootstrap() {
 
   setupSwagger(app);
 
-  // @ts-ignore
+  // @ts-expect-error Missing env definition
   if (import.meta.env.PROD) {
     await app.listen(3000, () => {
       console.log('=================================');

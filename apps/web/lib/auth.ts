@@ -1,7 +1,8 @@
-import Cookies from 'js-cookie';
+//eslint-disable-next-line
+import Cookies from "js-cookie";
 
-const ACCESS_TOKEN_KEY = 'access_token';
-const REFRESH_TOKEN_KEY = 'refresh_token';
+const ACCESS_TOKEN_KEY = "access_token";
+const REFRESH_TOKEN_KEY = "refresh_token";
 
 export interface AuthTokens {
   accessToken: string;
@@ -21,18 +22,20 @@ export const clearTokens = () => {
   Cookies.remove(REFRESH_TOKEN_KEY);
 };
 
-import ky from 'ky';
+import ky from "ky";
 
 export const refreshAccessToken = async (refreshToken: string) => {
   try {
-    const tokens: AuthTokens = await ky.post('/api/proxy/auth/refresh', {
-      json: { refreshToken },
-    }).json();
-    
+    const tokens: AuthTokens = await ky
+      .post("/api/proxy/auth/refresh", {
+        json: { refreshToken },
+      })
+      .json();
+
     setTokens(tokens);
     return tokens.accessToken;
   } catch (error) {
-    console.error('Failed to refresh token', error);
+    console.error("Failed to refresh token", error);
   }
   return undefined;
 };

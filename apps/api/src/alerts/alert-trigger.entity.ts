@@ -29,7 +29,7 @@ export class AlertTrigger extends BaseEntity {
   conditionType: string;
 
   @Column('jsonb')
-  conditionValue: any;
+  conditionValue: unknown;
 
   @Column({ nullable: true })
   messageTemplate: string;

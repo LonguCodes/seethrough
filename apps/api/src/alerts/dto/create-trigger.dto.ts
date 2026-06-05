@@ -23,7 +23,7 @@ export class CreateTriggerDto {
   conditionType: string;
 
   @IsObject()
-  conditionValue: any;
+  conditionValue: unknown;
 
   @IsOptional()
   @IsString()
@@ -85,7 +85,7 @@ export class UpdateTriggerDto {
 
   @IsOptional()
   @IsObject()
-  conditionValue?: any;
+  conditionValue?: unknown;
 
   @IsOptional()
   @IsString()

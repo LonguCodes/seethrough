@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+
 import { AlertCircle, CheckCircle2, Info, AlertTriangle, Clock } from 'lucide-react';
 
 interface Alert {

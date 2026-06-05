@@ -9,7 +9,7 @@ import { User } from '../entities/user.entity.js';
 export class PasswordStrategy implements LoginStrategy {
   name = 'password';
 
-  async authenticate(config: AuthMethod, credentials: Record<string, any>): Promise<User | null> {
+  async authenticate(config: AuthMethod, credentials: Record<string, unknown>): Promise<User | null> {
     const { username, password } = credentials;
     if (!username || !password) return null;
 
@@ -18,7 +18,7 @@ export class PasswordStrategy implements LoginStrategy {
       .where('user.username = :username', { username })
       .getOne();
 
-    if (user && await bcrypt.compare(password, user.password)) {
+    if (user && typeof password === 'string' && await bcrypt.compare(password, user.password)) {
       const { password: _, ...result } = user;
       return result as User;
     }

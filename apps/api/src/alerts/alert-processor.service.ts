@@ -2,14 +2,18 @@ import type { OnModuleInit } from '@nestjs/common';
 import { Injectable, Logger, Inject } from '@nestjs/common';
 import { interval } from 'rxjs';
 
+import type { AlertTrigger } from './alert-trigger.entity.js';
+import type { Alert } from './alert.entity.js';
 import { AlertScope , AlertStatus } from './alert.enums.js';
-import type { AlertsService } from './alerts.service.js';
-import type { ClusterService } from '../cluster/cluster.service.js';
-import type { MetricsService } from '../metrics/metrics.service.js';
-import type { ConditionEvaluator, ConditionConfig } from './evaluators/condition-evaluator.service.js';
-import type { IntegrationService } from './integrations/integration.service.js';
+import { AlertsService } from './alerts.service.js';
+import { ClusterService } from '../cluster/cluster.service.js';
+import { MetricsService } from '../metrics/metrics.service.js';
+import { ConditionEvaluator } from './evaluators/condition-evaluator.service.js';
+import type { ConditionConfig } from './evaluators/condition-evaluator.service.js';
+import { IntegrationService } from './integrations/integration.service.js';
 import type { NodeMetricData, ClusterInfoData, TargetItem } from './targets/target-data.types.js';
-import type { TargetRegistry } from './targets/target.registry.js';
+import  { TargetRegistry } from './targets/target.registry.js';
+import type { MachineMetric } from '../metrics/metric.entity.js';
 import { METRICS_STORAGE_TOKEN } from '../metrics/strategies/metrics-storage.interface.js';
 import type { IMetricsStorage } from '../metrics/strategies/metrics-storage.interface.js';
 
@@ -55,7 +59,7 @@ export class AlertProcessorService implements OnModuleInit {
     }
   }
 
-  private async processTrigger(trigger: any, latestMetrics: any[], clusterInfo: any) {
+  private async processTrigger(trigger: AlertTrigger, latestMetrics: MachineMetric[], clusterInfo: ClusterInfoData) {
     const target = this.targetRegistry.getTarget(trigger.targetType);
     if (!target) {
       this.logger.warn(`Unknown target type: ${trigger.targetType} for trigger ${trigger.id}`);
@@ -75,8 +79,8 @@ export class AlertProcessorService implements OnModuleInit {
     const condition: ConditionConfig = {
       targetType: trigger.targetType,
       property: trigger.targetProperty,
-      conditionType: trigger.conditionType,
-      value: trigger.conditionValue,
+      conditionType: trigger.conditionType as ConditionConfig['conditionType'],
+      value: trigger.conditionValue as ConditionConfig['value'],
     };
 
     for (const targetItem of targets) {
@@ -84,9 +88,9 @@ export class AlertProcessorService implements OnModuleInit {
     }
   }
 
-  private async evaluateTarget(trigger: any, condition: ConditionConfig, targetItem: { id: string; data: any }) {
+  private async evaluateTarget(trigger: AlertTrigger, condition: ConditionConfig, targetItem: TargetItem) {
     try {
-      const dataPoints = await this.getDataPoints(targetItem.data, trigger);
+      const dataPoints = await this.getDataPoints(targetItem.data as Record<string, unknown>, trigger);
       const result = this.conditionEvaluator.evaluateMultiple(dataPoints, condition);
 
       if (result.matched) {
@@ -161,7 +165,7 @@ export class AlertProcessorService implements OnModuleInit {
     }
   }
 
-  private async evaluateAutoResolve(alert: any, trigger: any) {
+  private async evaluateAutoResolve(alert: Alert, trigger: AlertTrigger) {
     try {
       const target = this.targetRegistry.getTarget(trigger.targetType);
       if (!target) return;
@@ -169,21 +173,21 @@ export class AlertProcessorService implements OnModuleInit {
       const latestMetrics = await this.metricsService.getLatestMetrics();
       const clusterInfo = await this.clusterService.getClusterInfo();
       const targets = target.getTargets(trigger.scope, trigger.scopeValue, latestMetrics, clusterInfo);
-      const targetItem = targets.find(t => t.id === alert.details?.target);
+      const targetItem = targets.find(t => t.id === (alert.details as Record<string, unknown> | null)?.target);
       if (!targetItem) return;
 
       const condition: ConditionConfig = {
         targetType: trigger.targetType,
         property: trigger.targetProperty,
-        conditionType: trigger.conditionType,
-        value: trigger.conditionValue,
+        conditionType: trigger.conditionType as ConditionConfig['conditionType'],
+        value: trigger.conditionValue as ConditionConfig['value'],
       };
 
       const resolveLookbackSeconds = trigger.autoResolveLookbackSeconds > 0
         ? trigger.autoResolveLookbackSeconds
         : trigger.lookbackSeconds;
 
-      const dataPoints = await this.getDataPoints(targetItem.data, {
+      const dataPoints = await this.getDataPoints(targetItem.data as Record<string, unknown>, {
         ...trigger,
         lookbackSeconds: resolveLookbackSeconds,
       });
@@ -202,7 +206,7 @@ export class AlertProcessorService implements OnModuleInit {
             severity: 'info',
             status: 'resolved',
             targetType: trigger.targetType,
-            targetId: alert.details?.target || '',
+            targetId: (alert.details as Record<string, unknown> | null)?.target as string || '',
             property: condition.property,
             actualValue: result.actualValue,
             triggerName: trigger.name,
@@ -217,26 +221,26 @@ export class AlertProcessorService implements OnModuleInit {
     }
   }
 
-  private async getDataPoints(currentData: any, trigger: any): Promise<any[]> {
+  private async getDataPoints(currentData: Record<string, unknown>, trigger: { targetType: string; lookbackSeconds: number }): Promise<Record<string, unknown>[]> {
     const lookbackMs = trigger.lookbackSeconds * 1000;
 
     if (lookbackMs === 0) {
       return [currentData];
     }
 
-    if (currentData.machineId && trigger.targetType === 'Node') {
+    if (currentData['machineId'] && trigger.targetType === 'Node') {
       const since = new Date(Date.now() - lookbackMs);
       try {
         const historicalMetrics = await this.metricsStorage.getMetricsInTimeRange(
-          currentData.machineId,
+          currentData['machineId'] as string,
           since,
         );
         if (historicalMetrics.length > 0) {
           historicalMetrics.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
-          return historicalMetrics;
+          return historicalMetrics as unknown as Record<string, unknown>[];
         }
       } catch (error) {
-        this.logger.warn(`Failed to fetch historical metrics for ${currentData.machineId}: ${error.message}`);
+        this.logger.warn(`Failed to fetch historical metrics for ${currentData['machineId']}: ${error.message}`);
       }
     }
 
@@ -244,7 +248,7 @@ export class AlertProcessorService implements OnModuleInit {
   }
 
   private buildMessage(
-    trigger: any,
+    trigger: AlertTrigger,
     condition: ConditionConfig,
     targetId: string,
     actualValue: number | string | undefined,

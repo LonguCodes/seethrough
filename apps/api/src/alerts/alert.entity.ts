@@ -24,7 +24,7 @@ export class Alert extends BaseEntity {
   status: AlertStatus;
 
   @Column('jsonb', { nullable: true })
-  details: any;
+  details: unknown;
 
   @ManyToOne(() => AlertTrigger, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'triggerId' })

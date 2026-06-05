@@ -3,8 +3,11 @@ import { Type } from 'class-transformer';
 import { IsNumber, IsOptional, IsArray, ValidateNested, IsString } from 'class-validator';
 import type { Request as ExpressRequest } from 'express';
 
-import type { MetricsGateway } from './metrics.gateway.js';
-import type { MetricsService } from './metrics.service.js';
+import { MetricsGateway } from './metrics.gateway.js';
+import { MetricsService } from './metrics.service.js';
+import type { AuthenticatedMachine } from '../auth/guards/jwt-auth.guard.js';
+
+type AuthenticatedMachineRequest = ExpressRequest & { user: AuthenticatedMachine };
 
 class PvcUsageDto {
   @IsString()
@@ -42,7 +45,7 @@ export class MetricsController {
   ) { }
 
   @Post()
-  async createMetric(@Body() dto: CreateMetricDto, @Request() req: ExpressRequest & { user: any }) {
+  async createMetric(@Body() dto: CreateMetricDto, @Request() req: AuthenticatedMachineRequest) {
     if (dto.pvcUsage && dto.pvcUsage.length > 0) {
       console.log(`Received ${dto.pvcUsage.length} PVC usage entries from ${req.user.machineId}`);
     }

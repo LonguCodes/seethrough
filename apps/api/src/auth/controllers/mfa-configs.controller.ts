@@ -1,11 +1,11 @@
 import { Controller, Get, Post, Patch, Delete, Body, Param, UseGuards } from '@nestjs/common';
 
 import { RequirePermissions } from '../decorators/permissions.decorator.js';
-import type { CreateMfaConfigDto } from '../dto/create-mfa-config.dto.js';
-import type { UpdateMfaConfigDto } from '../dto/update-mfa-config.dto.js';
+import  { CreateMfaConfigDto } from '../dto/create-mfa-config.dto.js';
+import  { UpdateMfaConfigDto } from '../dto/update-mfa-config.dto.js';
 import { PermissionsGuard } from '../guards/permissions.guard.js';
 import { PERMISSIONS } from '../permissions.js';
-import type { MfaConfigsService } from '../services/mfa-configs.service';
+import { MfaConfigsService } from "../services";
 
 @Controller('mfa-configs')
 @UseGuards(PermissionsGuard)

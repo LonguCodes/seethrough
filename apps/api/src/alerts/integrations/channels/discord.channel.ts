@@ -7,8 +7,10 @@ export class DiscordChannel implements IntegrationChannel {
   readonly type = 'discord';
   readonly label = 'Discord';
 
+  webhookUrl?: string;
+
   async send(payload: IntegrationMessagePayload): Promise<void> {
-    const webhookUrl = (this as any).webhookUrl as string;
+    const webhookUrl = this.webhookUrl;
     if (!webhookUrl) return;
 
     const color = payload.severity === 'critical' ? 0xff0000
@@ -50,6 +52,6 @@ export class DiscordChannel implements IntegrationChannel {
  */
 export function createDiscordChannel(webhookUrl: string): DiscordChannel {
   const channel = new DiscordChannel();
-  (channel as any).webhookUrl = webhookUrl;
+  channel.webhookUrl = webhookUrl;
   return channel;
 }

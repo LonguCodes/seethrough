@@ -7,7 +7,7 @@ import { createWebhookChannel } from './channels/webhook.channel.js';
 import type { IntegrationChannel, IntegrationMessagePayload } from './integration-channel.interface.js';
 import { AlertIntegration } from './integration.entity.js';
 import { TriggerIntegration } from './trigger-integration.entity.js';
-import type { CreateIntegrationDto, UpdateIntegrationDto } from '../dto/integration.dto.js';
+import  { CreateIntegrationDto, UpdateIntegrationDto } from '../dto/integration.dto.js';
 
 @Injectable()
 export class IntegrationService {
@@ -106,17 +106,18 @@ export class IntegrationService {
   }
 
   private buildChannel(integration: AlertIntegration): IntegrationChannel | null {
+    const cfg = integration.config as Record<string, string>;
     switch (integration.type) {
       case 'discord':
-        return createDiscordChannel(integration.config.webhookUrl);
+        return createDiscordChannel(cfg.webhookUrl);
       case 'slack':
-        return createSlackChannel(integration.config.webhookUrl);
+        return createSlackChannel(cfg.webhookUrl);
       case 'teams':
-        return createTeamsChannel(integration.config.webhookUrl);
+        return createTeamsChannel(cfg.webhookUrl);
       case 'webhook':
         return createWebhookChannel({
-          url: integration.config.url,
-          headers: integration.config.headers,
+          url: cfg.url,
+          headers: cfg.headers ? (cfg.headers as unknown as Record<string, string>) : undefined,
         });
       default:
         this.logger.warn(`Unknown integration type: ${integration.type}`);

@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { io, Socket } from 'socket.io-client';
-import { X, Terminal, ChevronDown } from 'lucide-react';
+
 import Ansi from 'ansi-to-react';
+import { X, Terminal, ChevronDown } from 'lucide-react';
+import { io, Socket } from 'socket.io-client';
 
 interface LogViewerProps {
   podName: string;

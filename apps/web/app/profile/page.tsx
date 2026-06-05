@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import QRCodeLib from 'qrcode';
 import { Shield, Key, Trash2, Check, AlertCircle, RefreshCw, Fingerprint, Copy } from 'lucide-react';
+import QRCodeLib from 'qrcode';
+
 import api from '../../lib/api';
 
 interface MfaEnrollment {

@@ -1,9 +1,17 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable } from "@nestjs/common";
 
-import type { ConditionValue, SingleConditionValue, RangeConditionValue, InConditionValue } from './condition-value.types.js';
-import type { TargetRegistry } from '../targets/target.registry.js';
-import { getTriggerProperties } from '../targets/trigger-property.decorator.js';
-import type { ConditionType, TriggerPropertyMetadata } from '../targets/trigger-property.decorator.js';
+import type {
+  ConditionValue,
+  SingleConditionValue,
+  RangeConditionValue,
+  InConditionValue,
+} from "./condition-value.types.js";
+import { TargetRegistry } from "../targets/target.registry.js";
+import { getTriggerProperties } from "../targets/trigger-property.decorator.js";
+import type {
+  ConditionType,
+  TriggerPropertyMetadata,
+} from "../targets/trigger-property.decorator.js";
 
 export interface ConditionConfig {
   targetType: string;
@@ -30,11 +38,14 @@ export interface FormatMessageVariables {
 export class ConditionEvaluator {
   constructor(private readonly targetRegistry: TargetRegistry) {}
 
-  private getPropertyDef(targetType: string, property: string): TriggerPropertyMetadata | undefined {
+  private getPropertyDef(
+    targetType: string,
+    property: string,
+  ): TriggerPropertyMetadata | undefined {
     const target = this.targetRegistry.getTarget(targetType);
     if (!target) return undefined;
     const properties = getTriggerProperties(target.constructor);
-    return properties.find(p => p.name === property);
+    return properties.find((p) => p.name === property);
   }
 
   /**
@@ -54,7 +65,10 @@ export class ConditionEvaluator {
   /**
    * Evaluate multiple data points (for lookback). Returns true only if ALL points match.
    */
-  evaluateMultiple(dataPoints: Record<string, unknown>[], condition: ConditionConfig): EvaluationResult {
+  evaluateMultiple(
+    dataPoints: Record<string, unknown>[],
+    condition: ConditionConfig,
+  ): EvaluationResult {
     if (dataPoints.length === 0) {
       return { matched: false, actualValue: undefined };
     }
@@ -66,7 +80,10 @@ export class ConditionEvaluator {
 
     if (dataPoints.length === 1) {
       const actualValue = propDef.getValue(dataPoints[0]);
-      return { matched: this.matches(actualValue, condition.conditionType, condition.value), actualValue };
+      return {
+        matched: this.matches(actualValue, condition.conditionType, condition.value),
+        actualValue,
+      };
     }
 
     let lastActualValue: number | string | undefined;
@@ -82,32 +99,36 @@ export class ConditionEvaluator {
     return { matched: true, actualValue: lastActualValue };
   }
 
-  private matches(value: number | string, conditionType: ConditionType, conditionValue: ConditionValue): boolean {
+  private matches(
+    value: number | string,
+    conditionType: ConditionType,
+    conditionValue: ConditionValue,
+  ): boolean {
     switch (conditionType) {
-      case 'eq':
-      case 'neq':
-      case 'gt':
-      case 'gte':
-      case 'lt':
-      case 'lte': {
+      case "eq":
+      case "neq":
+      case "gt":
+      case "gte":
+      case "lt":
+      case "lte": {
         const v = (conditionValue as SingleConditionValue).value;
-        if (conditionType === 'eq') return value === v;
-        if (conditionType === 'neq') return value !== v;
-        if (typeof value !== 'number' || typeof v !== 'number') return false;
-        if (conditionType === 'gt') return value > v;
-        if (conditionType === 'gte') return value >= v;
-        if (conditionType === 'lt') return value < v;
-        if (conditionType === 'lte') return value <= v;
+        if (conditionType === "eq") return value === v;
+        if (conditionType === "neq") return value !== v;
+        if (typeof value !== "number" || typeof v !== "number") return false;
+        if (conditionType === "gt") return value > v;
+        if (conditionType === "gte") return value >= v;
+        if (conditionType === "lt") return value < v;
+        if (conditionType === "lte") return value <= v;
         return false;
       }
-      case 'range': {
-        if (typeof value !== 'number') return false;
+      case "range": {
+        if (typeof value !== "number") return false;
         const range = conditionValue as RangeConditionValue;
         return value >= range.min && value <= range.max;
       }
-      case 'in': {
+      case "in": {
         const inValues = (conditionValue as InConditionValue).values;
-        return inValues.includes(value);
+        return (inValues as Array<string | number>).includes(value);
       }
       default:
         return false;
@@ -125,25 +146,25 @@ export class ConditionEvaluator {
     const { targetType, property, conditionType, value } = condition;
 
     switch (conditionType) {
-      case 'eq':
+      case "eq":
         return `${targetType} "${targetId}" has ${property} = "${actualValue}" (expected = "${(value as SingleConditionValue).value}")`;
-      case 'neq':
+      case "neq":
         return `${targetType} "${targetId}" has ${property} = "${actualValue}" (expected ≠ "${(value as SingleConditionValue).value}")`;
-      case 'gt':
+      case "gt":
         return `${targetType} "${targetId}" has ${property} = ${actualValue} (exceeds ${(value as SingleConditionValue).value})`;
-      case 'gte':
+      case "gte":
         return `${targetType} "${targetId}" has ${property} = ${actualValue} (≥ ${(value as SingleConditionValue).value})`;
-      case 'lt':
+      case "lt":
         return `${targetType} "${targetId}" has ${property} = ${actualValue} (below ${(value as SingleConditionValue).value})`;
-      case 'lte':
+      case "lte":
         return `${targetType} "${targetId}" has ${property} = ${actualValue} (≤ ${(value as SingleConditionValue).value})`;
-      case 'range': {
+      case "range": {
         const range = value as RangeConditionValue;
         return `${targetType} "${targetId}" has ${property} = ${actualValue} (range: ${range.min} - ${range.max})`;
       }
-      case 'in': {
+      case "in": {
         const inValue = value as InConditionValue;
-        return `${targetType} "${targetId}" has ${property} = "${actualValue}" (expected one of: ${inValue.values.join(', ')})`;
+        return `${targetType} "${targetId}" has ${property} = "${actualValue}" (expected one of: ${inValue.values.join(", ")})`;
       }
       default:
         return `${targetType} "${targetId}" triggered an alert on ${property} (current: ${actualValue})`;

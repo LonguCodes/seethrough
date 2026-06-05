@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 
-import type { CreateAuthMethodDto } from '../dto/create-auth-method.dto.js';
-import type { UpdateAuthMethodDto } from '../dto/update-auth-method.dto.js';
+import { CreateAuthMethodDto } from '../dto/create-auth-method.dto.js';
+import { UpdateAuthMethodDto } from '../dto/update-auth-method.dto.js';
 import { AuthMethod } from '../entities/auth-method.entity.js';
 import { MfaConfig } from '../entities/mfa-config.entity.js';
 
@@ -123,9 +123,9 @@ export class AuthMethodsService {
         .where('mfaConfig.id = :id', { id: mfaConfigId })
         .getOne();
       if (!mfaConfig) throw new NotFoundException('MFA configuration not found');
-      authMethod.mfaConfig = mfaConfig as any;
+      authMethod.mfaConfig = mfaConfig;
     } else {
-      authMethod.mfaConfig = null as any;
+      authMethod.mfaConfig = null;
     }
 
     return authMethod.save();

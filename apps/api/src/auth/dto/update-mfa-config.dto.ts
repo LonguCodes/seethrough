@@ -17,5 +17,5 @@ export class UpdateMfaConfigDto {
 
   @IsObject()
   @IsOptional()
-  settings?: Record<string, any>;
+  settings?: Record<string, unknown>;
 }

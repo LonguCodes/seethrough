@@ -1,10 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
+
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import { Settings } from 'lucide-react';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
+
 import api from '../../lib/api';
 import { ALL_PERMISSIONS, PERMISSION_LABELS, type Permission } from '../../lib/permissions';
 

@@ -1,9 +1,11 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
+
+import {jwtDecode} from "jwt-decode";
+
 import { getAccessToken, clearTokens } from './auth';
 import type { AuthUser } from './permissions';
-import {jwtDecode} from "jwt-decode";
 
 function parseUserFromToken(token: string | undefined): AuthUser | null {
   if (!token) return null;

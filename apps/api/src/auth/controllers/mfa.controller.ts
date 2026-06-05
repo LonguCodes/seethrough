@@ -2,9 +2,12 @@ import { Controller, Post, Get, Delete, Body, Param, Request, UseGuards } from '
 import type { Request as ExpressRequest } from 'express';
 
 import { Public } from '../decorators/public.decorator.js';
-import type { VerifyMfaDto } from '../dto/verify-mfa.dto.js';
+import  { VerifyMfaDto } from '../dto/verify-mfa.dto.js';
+import type { AuthenticatedUser } from '../guards/jwt-auth.guard.js';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard.js';
-import type { MfaService } from '../services/mfa.service';
+import { MfaService } from "../services";
+
+type AuthenticatedRequest = ExpressRequest & { user: AuthenticatedUser };
 
 
 @Controller('mfa')
@@ -19,13 +22,13 @@ export class MfaController {
 
   @UseGuards(JwtAuthGuard)
   @Get('enrollments')
-  async getEnrollments(@Request() req: ExpressRequest & { user: any }) {
+  async getEnrollments(@Request() req: AuthenticatedRequest) {
     return this.mfaService.getUserEnrollments(req.user.id);
   }
 
   @UseGuards(JwtAuthGuard)
   @Post('enroll/:mfaConfigId')
-  async enroll(@Param('mfaConfigId') mfaConfigId: string, @Request() req: ExpressRequest & { user: any }) {
+  async enroll(@Param('mfaConfigId') mfaConfigId: string, @Request() req: AuthenticatedRequest) {
     return this.mfaService.enrollUser(req.user.id, mfaConfigId);
   }
 
@@ -34,7 +37,7 @@ export class MfaController {
   async verifyEnrollment(
     @Param('enrollmentId') enrollmentId: string,
     @Body('code') code: string,
-    @Request() req: ExpressRequest & { user: any },
+    @Request() req: AuthenticatedRequest,
   ) {
     const result = await this.mfaService.verifyEnrollment(req.user.id, enrollmentId, code);
     return { success: result };
@@ -42,7 +45,7 @@ export class MfaController {
 
   @UseGuards(JwtAuthGuard)
   @Delete('enrollments/:enrollmentId')
-  async removeEnrollment(@Param('enrollmentId') enrollmentId: string, @Request() req: ExpressRequest & { user: any }) {
+  async removeEnrollment(@Param('enrollmentId') enrollmentId: string, @Request() req: AuthenticatedRequest) {
     await this.mfaService.removeEnrollment(req.user.sub, enrollmentId);
     return { success: true };
   }
@@ -51,7 +54,7 @@ export class MfaController {
 
   @UseGuards(JwtAuthGuard)
   @Post('passkey/register-options')
-  async passkeyRegisterOptions(@Body('mfaConfigId') mfaConfigId: string, @Request() req: ExpressRequest & { user: any }) {
+  async passkeyRegisterOptions(@Body('mfaConfigId') mfaConfigId: string, @Request() req: AuthenticatedRequest) {
     const options = await this.mfaService.getPasskeyRegistrationOptions(req.user.id, req.user.username, mfaConfigId);
     return options;
   }
@@ -60,8 +63,8 @@ export class MfaController {
   @Post('passkey/register-verify')
   async passkeyRegisterVerify(
     @Body('mfaConfigId') mfaConfigId: string,
-    @Body('response') response: any,
-    @Request() req: ExpressRequest & { user: any },
+    @Body('response') response: unknown,
+    @Request() req: AuthenticatedRequest,
   ) {
     const enrollment = await this.mfaService.verifyPasskeyRegistration(req.user.id, mfaConfigId, response);
     return { success: true, enrollmentId: enrollment.id };

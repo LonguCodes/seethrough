@@ -1,11 +1,14 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
+
 import { HardDrive, Database, Server, Info, Box, Tag } from 'lucide-react';
-import { useRequirePermission } from '../../lib/use-require-permission';
+
+import api from '../../lib/api';
 import { PERMISSIONS } from '../../lib/permissions';
-import PageLoading from '../components/PageLoading';
+import { useRequirePermission } from '../../lib/use-require-permission';
 import AccessDenied from '../components/AccessDenied';
+import PageLoading from '../components/PageLoading';
 
 interface PvcUsage {
   name: string;
@@ -58,7 +61,6 @@ function parseKubernetesQuantity(quantity: string | undefined): number {
   return factor ? value * factor : value;
 }
 
-import api from '../../lib/api';
 
 export default function VolumesPage() {
   const { authorized, loading: authLoading } = useRequirePermission(PERMISSIONS.VOLUMES_VIEW);

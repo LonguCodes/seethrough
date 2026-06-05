@@ -1,4 +1,5 @@
 import { use } from 'react';
+
 import MachineDetails from './MachineDetails';
 
 export const dynamic = 'force-dynamic';

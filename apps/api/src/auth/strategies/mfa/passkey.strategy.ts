@@ -1,48 +1,56 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable } from "@nestjs/common";
 import {
   generateRegistrationOptions,
   verifyRegistrationResponse,
   generateAuthenticationOptions,
   verifyAuthenticationResponse,
-} from '@simplewebauthn/server';
+} from "@simplewebauthn/server";
+import type { AuthenticatorTransportFuture } from "@simplewebauthn/server";
 
-import type { MfaStrategy } from './mfa-strategy.interface.js';
-import type { MfaConfig } from '../../entities/mfa-config.entity.js';
-import type { UserMfa } from '../../entities/user-mfa.entity.js';
-import type { PasskeySettings } from '../../types/mfa-method-settings.types.js';
+import type { MfaStrategy } from "./mfa-strategy.interface.js";
+import type { MfaConfig } from "../../entities/mfa-config.entity.js";
+import type { UserMfa } from "../../entities/user-mfa.entity.js";
 
 // In-memory store for challenges (production: use Redis)
 const challengeStore = new Map<string, { challenge: string; expiresAt: Date }>();
-const registrationStore = new Map<string, { options: any; expiresAt: Date }>();
 
-const RP_ID = process.env.WEBAUTHN_RP_ID || 'localhost';
-const RP_NAME = 'SeeThrough';
-const ORIGIN = process.env.WEB_BASE_URL || 'http://localhost:3000';
+interface StoredRegistration {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  options: any;
+  expiresAt: Date;
+}
+
+const registrationStore = new Map<string, StoredRegistration>();
+
+const RP_ID = process.env.WEBAUTHN_RP_ID || "localhost";
+const ORIGIN = process.env.WEB_BASE_URL || "http://localhost:3000";
 
 function getSetting<T>(config: MfaConfig, key: string, fallback: T): T {
-  return (config.settings as any)?.[key] ?? fallback;
+  const settings = config.settings as Record<string, unknown> | undefined;
+  return (settings?.[key] as T) ?? fallback;
 }
 
 @Injectable()
 export class PasskeyStrategy implements MfaStrategy {
-  name = 'passkey';
+  name = "passkey";
 
   /**
    * Generate registration options for enrolling a new passkey.
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async generateRegistrationOptions(userId: string, username: string, config: MfaConfig): Promise<any> {
-    const rpId = getSetting(config, 'relyingPartyId', RP_ID);
-    const rpName = getSetting(config, 'relyingPartyName', RP_NAME);
+    const rpId = getSetting(config, "relyingPartyId", RP_ID);
+    const rpName = getSetting(config, "relyingPartyName", "SeeThrough");
 
     const options = await generateRegistrationOptions({
       rpName,
       rpID: rpId,
       userName: username,
       userDisplayName: username,
-      attestationType: 'none',
+      attestationType: "none",
       authenticatorSelection: {
-        residentKey: 'preferred',
-        userVerification: getSetting(config, 'userVerification', 'preferred'),
+        residentKey: "preferred",
+        userVerification: getSetting(config, "userVerification", "preferred"),
       },
     });
 
@@ -57,6 +65,7 @@ export class PasskeyStrategy implements MfaStrategy {
   /**
    * Verify the registration response from the client.
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async verifyRegistration(userId: string, response: any): Promise<any> {
     const stored = registrationStore.get(userId);
     if (!stored || stored.expiresAt < new Date()) {
@@ -87,22 +96,19 @@ export class PasskeyStrategy implements MfaStrategy {
    * Generate authentication options (challenge) for passkey MFA.
    * Returns options to pass to navigator.credentials.get().
    */
-  async generateAuthenticationOptions(
-    enrollments: UserMfa[],
-    config: MfaConfig,
-    challengeToken: string,
-  ): Promise<any> {
-    const rpId = getSetting(config, 'relyingPartyId', RP_ID);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async generateAuthenticationOptions(enrollments: UserMfa[], config: MfaConfig, challengeToken: string): Promise<any> {
+    const rpId = getSetting(config, "relyingPartyId", RP_ID);
 
     const validEnrollments = enrollments.filter((e) => e.credentialId);
     if (validEnrollments.length === 0) return null;
 
     const options = await generateAuthenticationOptions({
       rpID: rpId,
-      userVerification: getSetting(config, 'userVerification', 'preferred'),
+      userVerification: getSetting(config, "userVerification", "preferred"),
       allowCredentials: validEnrollments.map((e) => ({
         id: e.credentialId!,
-        transports: (e.destination?.split(',') as any) ?? undefined,
+        transports: (e.destination?.split(",") as AuthenticatorTransportFuture[]) ?? undefined,
       })),
     });
 
@@ -125,17 +131,17 @@ export class PasskeyStrategy implements MfaStrategy {
   /**
    * Generate a passkey challenge for the MFA flow.
    */
-  async generateChallenge(config: MfaConfig, enrollment: UserMfa): Promise<string> {
-    return 'passkey-challenge';
+  async generateChallenge(_config: MfaConfig, _enrollment: UserMfa): Promise<string> {
+    return "passkey-challenge";
   }
 
   /**
    * Verify a passkey assertion response.
    * The 'code' parameter is a JSON string containing the authenticator assertion response.
    */
-  async verify(config: MfaConfig, enrollment: UserMfa, code: string): Promise<boolean> {
+  async verify(_config: MfaConfig, enrollment: UserMfa, code: string): Promise<boolean> {
     try {
-      const assertionResponse: any = JSON.parse(code);
+      const assertionResponse = JSON.parse(code);
       const credentialId = enrollment.credentialId;
       const publicKey = enrollment.publicKeyCose;
 
@@ -154,11 +160,10 @@ export class PasskeyStrategy implements MfaStrategy {
         expectedRPID: RP_ID,
         credential: {
           id: credentialId,
-          publicKey: Buffer.from(publicKey, 'base64'),
+          publicKey: Buffer.from(publicKey, "base64"),
           counter: 0,
-          type: 'public-key',
-          transports: (enrollment.destination?.split(',') as any) ?? [],
-        } as any,
+          transports: (enrollment.destination?.split(",") as AuthenticatorTransportFuture[]) ?? [],
+        },
       });
 
       challengeStore.delete(enrollment.id);

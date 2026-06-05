@@ -1,14 +1,17 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { io } from 'socket.io-client';
-import Link from 'next/link';
+
 import { Activity, Cpu, Database, HardDrive, LayoutDashboard, Server, History, Box, Layers, Globe, AlertTriangle, Settings } from 'lucide-react';
+import Link from 'next/link';
+import { io } from 'socket.io-client';
+
 import AlertsList from './components/AlertsList';
-import { useRequirePermission } from '../lib/use-require-permission';
+import api from '../lib/api';
 import { PERMISSIONS } from '../lib/permissions';
-import PageLoading from './components/PageLoading';
+import { useRequirePermission } from '../lib/use-require-permission';
 import AccessDenied from './components/AccessDenied';
+import PageLoading from './components/PageLoading';
 
 interface Metric {
 // ... existing interfaces
@@ -40,7 +43,6 @@ interface DashboardProps {
   apiUrl: string;
 }
 
-import api from '../lib/api';
 
 export default function Dashboard({ apiUrl }: DashboardProps) {
   const { authorized, loading: authLoading } = useRequirePermission(PERMISSIONS.CLUSTER_VIEW);

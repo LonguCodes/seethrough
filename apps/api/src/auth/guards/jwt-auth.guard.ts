@@ -1,10 +1,18 @@
 import type { ExecutionContext, CanActivate } from '@nestjs/common';
 import { Injectable, UnauthorizedException } from '@nestjs/common';
-import type { Reflector } from '@nestjs/core';
-import type { JwtService } from '@nestjs/jwt';
+import { Reflector } from '@nestjs/core';
+import { JwtService } from '@nestjs/jwt';
 import type { Request } from 'express';
 
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator.js';
+
+export interface JwtPayload {
+  sub: string;
+  username?: string;
+  role: string;
+  permissions?: string[];
+  machineId?: string;
+}
 
 export interface AuthenticatedUser {
   id: string;
@@ -47,7 +55,7 @@ export class JwtAuthGuard implements CanActivate {
     }
 
     try {
-      const payload: any = await this.jwtService.verifyAsync(token);
+      const payload = await this.jwtService.verifyAsync<JwtPayload>(token);
 
       if (payload.machineId) {
         request['user'] = {

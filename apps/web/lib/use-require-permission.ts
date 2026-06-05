@@ -1,7 +1,7 @@
 'use client';
 
-import { useAuth } from './use-auth';
 import { hasPermission, type Permission } from './permissions';
+import { useAuth } from './use-auth';
 
 /**
  * Returns { authorized, loading } after auth is loaded.

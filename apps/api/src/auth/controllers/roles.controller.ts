@@ -10,11 +10,11 @@ import {
 } from '@nestjs/common';
 
 import { RequirePermissions } from '../decorators/permissions.decorator.js';
-import type { CreateRoleDto } from '../dto/create-role.dto.js';
-import type { UpdateRoleDto } from '../dto/update-role.dto.js';
+import  { CreateRoleDto } from '../dto/create-role.dto.js';
+import  { UpdateRoleDto } from '../dto/update-role.dto.js';
 import { PermissionsGuard } from '../guards/permissions.guard.js';
 import { PERMISSIONS } from '../permissions.js';
-import type { AuthService } from '../services/auth.service';
+import { AuthService } from "../services";
 
 @Controller('roles')
 @UseGuards(PermissionsGuard)

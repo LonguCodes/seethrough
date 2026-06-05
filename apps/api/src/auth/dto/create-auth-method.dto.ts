@@ -30,5 +30,5 @@ export class CreateAuthMethodDto {
   mfaConfigId?: string;
 
   @IsObject()
-  settings: Record<string, any>;
+  settings: Record<string, unknown>;
 }

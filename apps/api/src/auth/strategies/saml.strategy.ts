@@ -8,14 +8,14 @@ import type { SamlAuthSettings } from '../types/auth-method-settings.types.js';
 export interface SamlIdentity {
   externalId?: string;
   email?: string;
-  attributes?: Record<string, any>;
+  attributes?: Record<string, unknown>;
 }
 
 @Injectable()
 export class SamlStrategy implements LoginStrategy {
   name = 'saml';
 
-  async authenticate(config: AuthMethod, credentials: Record<string, any>): Promise<User | null> {
+  async authenticate(config: AuthMethod, credentials: Record<string, unknown>): Promise<User | null> {
     // SAML requires redirect flow, not direct credential auth
     return null;
   }
@@ -27,10 +27,11 @@ export class SamlStrategy implements LoginStrategy {
     return `${entryPoint}${separator}RelayState=${encodeURIComponent(state)}`;
   }
 
-  async handleCallback(config: AuthMethod, params: Record<string, any>): Promise<SamlIdentity> {
+  async handleCallback(config: AuthMethod, params: Record<string, unknown>): Promise<SamlIdentity> {
+    const p = params as Record<string, string>;
     return {
-      externalId: params.nameid || params.subject,
-      email: params.email,
+      externalId: p.nameid || p.subject,
+      email: p.email,
       attributes: params,
     };
   }

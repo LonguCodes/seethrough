@@ -9,6 +9,8 @@ import {
 } from '@nestjs/websockets';
 import type { Server, Socket } from 'socket.io';
 
+import type { MachineMetric } from './metric.entity.js';
+
 @WebSocketGateway(3001, {
   cors: {
     origin: '*',
@@ -18,7 +20,7 @@ export class MetricsGateway implements OnGatewayInit, OnGatewayConnection, OnGat
   @WebSocketServer() server: Server;
   private logger: Logger = new Logger('MetricsGateway');
 
-  broadcastMetric(metric: any) {
+  broadcastMetric(metric: MachineMetric) {
     this.server.emit('metrics-update', metric);
   }
 
@@ -30,7 +32,7 @@ export class MetricsGateway implements OnGatewayInit, OnGatewayConnection, OnGat
     this.logger.log(`Client disconnected: ${client.id}`);
   }
 
-  handleConnection(client: Socket, ...args: any[]) {
+  handleConnection(client: Socket, ...args: unknown[]) {
     this.logger.log(`Client connected: ${client.id}`);
   }
 }

@@ -33,5 +33,5 @@ export class UpdateAuthMethodDto {
 
   @IsObject()
   @IsOptional()
-  settings?: Record<string, any>;
+  settings?: Record<string, unknown>;
 }

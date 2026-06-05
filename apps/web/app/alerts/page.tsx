@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+
 import { Settings, Plus, Trash2, Power, PowerOff, Activity, Bell, MessageSquare, Webhook } from 'lucide-react';
 
 interface SingleConditionValue { value: number | string; }
@@ -37,14 +38,14 @@ interface AlertIntegration {
   createdAt: string;
 }
 
-import api from '../../lib/api';
-import { useAuth } from '../../lib/use-auth';
-import { hasPermission, PERMISSIONS } from '../../lib/permissions';
-import { useRequirePermission } from '../../lib/use-require-permission';
-import PageLoading from '../components/PageLoading';
-import AccessDenied from '../components/AccessDenied';
 import AlertTriggerForm from './AlertTriggerForm';
 import IntegrationForm from './IntegrationForm';
+import api from '../../lib/api';
+import { hasPermission, PERMISSIONS } from '../../lib/permissions';
+import { useAuth } from '../../lib/use-auth';
+import { useRequirePermission } from '../../lib/use-require-permission';
+import AccessDenied from '../components/AccessDenied';
+import PageLoading from '../components/PageLoading';
 
 type Tab = 'triggers' | 'integrations';
 

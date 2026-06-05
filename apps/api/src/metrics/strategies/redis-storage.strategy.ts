@@ -48,7 +48,7 @@ export class RedisStorageStrategy implements IMetricsStorage {
         if (colonIdx === -1) return null;
         return JSON.parse(v.substring(colonIdx + 1));
       })
-      .filter((v): v is any => v !== null)
+      .filter((v): v is NonNullable<typeof v> => v !== null)
       .map((m) => ({ ...m, timestamp: new Date(m.timestamp) }));
   }
 

@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 
-import type { CreateMfaConfigDto } from '../dto/create-mfa-config.dto.js';
-import type { UpdateMfaConfigDto } from '../dto/update-mfa-config.dto.js';
+import  { CreateMfaConfigDto } from '../dto/create-mfa-config.dto.js';
+import  { UpdateMfaConfigDto } from '../dto/update-mfa-config.dto.js';
 import { MfaConfig } from '../entities/mfa-config.entity.js';
 
 @Injectable()

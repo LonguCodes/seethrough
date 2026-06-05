@@ -4,9 +4,9 @@ import { shake } from "radash";
 import { AlertTrigger } from './alert-trigger.entity.js';
 import { Alert } from './alert.entity.js';
 import { AlertStatus } from './alert.enums.js';
-import type { CreateTriggerDto, UpdateTriggerDto } from './dto/create-trigger.dto.js';
-import type { IntegrationService } from './integrations/integration.service.js';
-import type { TargetRegistry } from './targets/target.registry.js';
+import  { CreateTriggerDto, UpdateTriggerDto } from './dto/create-trigger.dto.js';
+import { IntegrationService } from './integrations/integration.service.js';
+import { TargetRegistry } from './targets/target.registry.js';
 
 @Injectable()
 export class AlertsService {
@@ -94,7 +94,7 @@ export class AlertsService {
   // Alert Instance Methods
   async createAlert(data: Partial<Alert>) {
     const alert = Alert.create(data);
-    return alert.save();
+    return alert.save() as Promise<Alert>;
   }
 
   findAllAlerts(status?: AlertStatus, target?: string) {

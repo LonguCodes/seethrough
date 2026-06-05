@@ -3,6 +3,7 @@ import { Injectable, Inject } from '@nestjs/common';
 import type { MachineMetric } from './metric.entity.js';
 import type { IMetricsStorage } from './strategies/metrics-storage.interface.js';
 import { METRICS_STORAGE_TOKEN } from './strategies/metrics-storage.interface.js';
+import type { PvcUsageEntry } from '../alerts/targets/target-data.types.js';
 
 @Injectable()
 export class MetricsService {
@@ -15,7 +16,7 @@ export class MetricsService {
     cpuUsage: number,
     ramUsage: number,
     diskUsage: number,
-    pvcUsage: any[] = [],
+    pvcUsage: PvcUsageEntry[] = [],
   ): Promise<MachineMetric> {
     return this.storage.save({
       machineId,

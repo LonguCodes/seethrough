@@ -18,7 +18,7 @@ export class MfaConfig extends BaseEntity {
   enabled: boolean;
 
   @Column({ type: 'json' })
-  settings: Record<string, any>;
+  settings: Record<string, unknown>;
 
   @OneToMany(() => AuthMethod, (authMethod) => authMethod.mfaConfig)
   authMethods: Relation<AuthMethod[]>;

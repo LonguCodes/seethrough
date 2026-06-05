@@ -4,14 +4,14 @@ import type { OnModuleInit} from '@nestjs/common';
 import {BadRequestException, Injectable, NotFoundException, UnauthorizedException} from '@nestjs/common';
 
 
-import type {TokenService} from "./token.service.js";
-import type {AuthMethod} from '../entities/auth-method.entity.js';
-import {MfaConfig} from '../entities/mfa-config.entity.js';
-import {UserMfa} from '../entities/user-mfa.entity.js';
-import {User} from '../entities/user.entity.js';
-import type {MfaStrategy} from '../strategies/mfa/mfa-strategy.interface.js';
-import type {PasskeyStrategy} from '../strategies/mfa/passkey.strategy.js';
-import type {TotpStrategy} from '../strategies/mfa/totp.strategy.js';
+import { TokenService } from "./token.service.js";
+import type { AuthMethod } from '../entities/auth-method.entity.js';
+import { MfaConfig } from '../entities/mfa-config.entity.js';
+import { UserMfa } from '../entities/user-mfa.entity.js';
+import { User } from '../entities/user.entity.js';
+import type { MfaStrategy } from "../strategies";
+import { PasskeyStrategy } from "../strategies";
+import { TotpStrategy } from "../strategies";
 
 const ENCRYPTION_ALGORITHM = 'aes-256-cbc';
 const IV_LENGTH = 16;
@@ -209,7 +209,7 @@ export class MfaService implements OnModuleInit {
       .getMany();
   }
 
-  async getPasskeyRegistrationOptions(userId: string, username: string, mfaConfigId: string): Promise<any> {
+  async getPasskeyRegistrationOptions(userId: string, username: string, mfaConfigId: string): Promise<Record<string, unknown>> {
     const mfaConfig = await MfaConfig.createQueryBuilder('mfaConfig')
       .where('mfaConfig.id = :id', { id: mfaConfigId })
       .andWhere('mfaConfig.enabled = :enabled', { enabled: true })
@@ -218,7 +218,7 @@ export class MfaService implements OnModuleInit {
     return this.passkeyStrategy.generateRegistrationOptions(userId, username, mfaConfig);
   }
 
-  async verifyPasskeyRegistration(userId: string, mfaConfigId: string, response: any): Promise<UserMfa> {
+  async verifyPasskeyRegistration(userId: string, mfaConfigId: string, response: unknown): Promise<UserMfa> {
     const credential = await this.passkeyStrategy.verifyRegistration(userId, response);
     if (!credential) throw new BadRequestException('Passkey registration verification failed');
 
@@ -228,10 +228,12 @@ export class MfaService implements OnModuleInit {
       .getOne();
     if (!mfaConfig) throw new NotFoundException('MFA configuration not found or disabled');
 
+    /* eslint-disable @typescript-eslint/no-explicit-any */
     const enrollment = UserMfa.create({
       user: { id: userId } as any,
       mfaConfig,
       type: 'passkey' as any,
+    /* eslint-enable @typescript-eslint/no-explicit-any */
       enabled: true,
       verified: true,
       credentialId: credential.id?.toString(),
@@ -242,7 +244,7 @@ export class MfaService implements OnModuleInit {
     return enrollment.save();
   }
 
-  async getPasskeyAuthenticateOptions(challengeToken: string): Promise<any> {
+  async getPasskeyAuthenticateOptions(challengeToken: string): Promise<Record<string, unknown>> {
     const challenge = challengeStore.get(challengeToken);
     if (!challenge || challenge.expiresAt < new Date()) {
       challengeStore.delete(challengeToken);

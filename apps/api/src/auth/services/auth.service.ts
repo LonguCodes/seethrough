@@ -14,20 +14,20 @@ import {
 } from '@nestjs/common';
 import bcrypt from 'bcrypt';
 
-import type { AuthMethodsService } from './auth-methods.service.js';
-import type { MfaService, MfaChallenge } from './mfa.service.js';
-import type {TokenService} from "./token.service.js";
+import { AuthMethodsService } from './auth-methods.service.js';
+import { MfaService } from './mfa.service.js';
+import type { MfaChallenge } from './mfa.service.js';
+import { TokenService } from "./token.service.js";
 import type { AppConfig } from '../../config/app.config.js';
 import { AuthMethod } from '../entities/auth-method.entity.js';
 import { Invitation } from '../entities/invitation.entity.js';
 import { Role } from '../entities/role.entity.js';
 import { Session } from '../entities/session.entity.js';
 import { User } from '../entities/user.entity.js';
-import { DEFAULT_ROLES, ALL_PERMISSIONS } from '../permissions.js';
-import type { LoginStrategy } from '../strategies/login-strategy.interface.js';
-import type { OidcStrategy } from '../strategies/oidc.strategy.js';
-import type { PasswordStrategy } from '../strategies/password.strategy.js';
-import type { SamlStrategy } from '../strategies/saml.strategy.js';
+import { DEFAULT_ROLES } from '../permissions.js';
+import type { LoginStrategy } from "../strategies";
+import { OidcStrategy , PasswordStrategy , SamlStrategy } from "../strategies";
+import type { AuthMethodType } from '../types/auth-method-type.js';
 
 export interface LoginResult {
   accessToken?: string;
@@ -190,7 +190,7 @@ export class AuthService implements OnModuleInit {
   }
 
 
-  async login(configId: string, credentials: Record<string, any>): Promise<LoginResult> {
+  async login(configId: string, credentials: Record<string, unknown>): Promise<LoginResult> {
     const config = await AuthMethod.createQueryBuilder('authMethod')
       .leftJoinAndSelect('authMethod.mfaConfig', 'mfaConfig')
       .where('authMethod.id = :id', { id: configId })
@@ -227,22 +227,20 @@ export class AuthService implements OnModuleInit {
     const strategy = this.getStrategy(config.type);
 
     // Check if strategy has a getStartUrl method
-    const startUrlFn = (strategy as any).getStartUrl;
-    if (typeof startUrlFn !== 'function') {
-      return null;
+    if ('getStartUrl' in strategy && typeof strategy.getStartUrl === 'function') {
+      const state = crypto.randomBytes(16).toString('hex');
+      const stateWithConfig = Buffer.from(JSON.stringify({ state, configId: config.id })).toString('base64url');
+
+      const redirectUri = `${process.env.API_BASE_URL || 'http://localhost:3000'}/api/auth/callback/${config.id}`;
+      return strategy.getStartUrl(config, redirectUri, stateWithConfig);
     }
-
-    const state = crypto.randomBytes(16).toString('hex');
-    const stateWithConfig = Buffer.from(JSON.stringify({ state, configId: config.id })).toString('base64url');
-
-    const redirectUri = `${process.env.API_BASE_URL || 'http://localhost:3000'}/api/auth/callback/${config.id}`;
-    return startUrlFn.call(strategy, config, redirectUri, stateWithConfig);
+    return null;
   }
 
   /**
    * GET /auth/callback/:configId — handle SSO callback
    */
-  async handleCallback(configId: string, query: Record<string, any>): Promise<LoginResult> {
+  async handleCallback(configId: string, query: Record<string, unknown>): Promise<LoginResult> {
     const config = await AuthMethod.createQueryBuilder('authMethod')
       .leftJoinAndSelect('authMethod.mfaConfig', 'mfaConfig')
       .where('authMethod.id = :id', { id: configId })
@@ -253,20 +251,24 @@ export class AuthService implements OnModuleInit {
     }
 
     const strategy = this.getStrategy(config.type);
-    const callbackFn = (strategy as any).handleCallback;
-    if (typeof callbackFn !== 'function') {
+    if (!('handleCallback' in strategy) || typeof strategy.handleCallback !== 'function') {
       throw new BadRequestException(`Auth type '${config.type}' does not support callback`);
     }
 
-    const identity = await callbackFn.call(strategy, config, query);
+    const identity = await strategy.handleCallback(config, query) as {
+      email?: string;
+      externalId?: string;
+      attributes?: Record<string, unknown>;
+    };
+    const attrs = identity.attributes;
     const username: string | undefined =
       identity.email ||
       identity.externalId ||
-      identity.attributes?.preferred_username ||
-      identity.attributes?.sub ||
-      identity.attributes?.username ||
-      identity.attributes?.uid ||
-      identity.attributes?.name;
+      (attrs as Record<string, unknown> | undefined)?.preferred_username as string | undefined ||
+      (attrs as Record<string, unknown> | undefined)?.sub as string | undefined ||
+      (attrs as Record<string, unknown> | undefined)?.username as string | undefined ||
+      (attrs as Record<string, unknown> | undefined)?.uid as string | undefined ||
+      (attrs as Record<string, unknown> | undefined)?.name as string | undefined;
 
     if (!username) {
       throw new UnauthorizedException('No identifiable user attribute received from provider');
@@ -326,7 +328,7 @@ export class AuthService implements OnModuleInit {
     if (methodCount === 0) {
       const method = new AuthMethod();
       method.name = 'Local Login';
-      method.type = 'password' as any;
+      method.type = 'password' as AuthMethodType;
       method.enabled = true;
       method.priority = 0;
       method.autoCreateUsers = false;

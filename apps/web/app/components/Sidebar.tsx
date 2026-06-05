@@ -1,10 +1,11 @@
 'use client';
 
+import { LayoutDashboard, Layers, Settings, Activity, Box, Cpu, HardDrive, Users, Shield, Key, User, LogOut } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useAuth } from '../../lib/use-auth';
+
 import { hasPermission, PERMISSIONS, NAV_PERMISSION_MAP } from '../../lib/permissions';
-import { LayoutDashboard, Layers, Settings, Activity, Box, Cpu, HardDrive, Users, Shield, Key, User, LogOut } from 'lucide-react';
+import { useAuth } from '../../lib/use-auth';
 
 const ALL_MENU_ITEMS = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/' },

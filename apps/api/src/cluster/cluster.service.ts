@@ -1,15 +1,17 @@
 import { Injectable, Inject } from '@nestjs/common';
 import type { Redis } from 'ioredis';
 
+import type { ClusterInfoData, PodInfoData } from '../alerts/targets/target-data.types.js';
+
 @Injectable()
 export class ClusterService {
   constructor(
     @Inject('REDIS_CLIENT') private readonly redis: Redis,
   ) { }
 
-  async saveClusterInfo(data: any) {
+  async saveClusterInfo(data: ClusterInfoData) {
     const existingKeys = await this.redis.keys('cluster:pod:*');
-    const newKeys = (data.pods || []).map((pod: any) => `cluster:pod:${pod.namespace}:${pod.name}`);
+    const newKeys = (data.pods || []).map((pod: PodInfoData) => `cluster:pod:${pod.namespace}:${pod.name}`);
     const keysToDelete = existingKeys.filter(k => !newKeys.includes(k));
 
     const pipeline = this.redis.pipeline();
@@ -39,7 +41,7 @@ export class ClusterService {
 
     // Store each pod individually with 5 minute TTL
     if (data.pods && Array.isArray(data.pods)) {
-      data.pods.forEach((pod: any) => {
+      data.pods.forEach((pod: PodInfoData) => {
         const key = `cluster:pod:${pod.namespace}:${pod.name}`;
         pipeline.set(key, JSON.stringify(pod), 'EX', 300);
       });
@@ -60,7 +62,7 @@ export class ClusterService {
       this.redis.keys('cluster:pod:*')
     ]);
 
-    const pods: any[] = [];
+    const pods: PodInfoData[] = [];
     if (keys.length > 0) {
       const podsJson = await this.redis.mget(...keys);
       podsJson.forEach(json => {

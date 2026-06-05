@@ -1,11 +1,12 @@
 import { ConfigToken } from "@longucodes/config";
-import type { HttpService } from "@nestjs/axios";
+import { HttpService } from "@nestjs/axios";
 import { Injectable, Inject, Logger } from "@nestjs/common";
 import type { OnModuleInit } from "@nestjs/common";
-import type { JwtService } from "@nestjs/jwt";
+import { JwtService } from "@nestjs/jwt";
 import { interval, firstValueFrom } from "rxjs";
 
-import type { KubernetesService } from "./kubernetes.service.js";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { KubernetesService } from "./kubernetes.service.js";
 import type { AppConfig } from "../config/app.config.js";
 
 @Injectable()

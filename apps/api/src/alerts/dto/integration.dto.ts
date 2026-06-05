@@ -8,7 +8,7 @@ export class CreateIntegrationDto {
   type: 'teams' | 'slack' | 'discord' | 'webhook';
 
   @IsObject()
-  config: Record<string, any>;
+  config: Record<string, unknown>;
 
   @IsOptional()
   @IsBoolean()
@@ -26,7 +26,7 @@ export class UpdateIntegrationDto {
 
   @IsOptional()
   @IsObject()
-  config?: Record<string, any>;
+  config?: Record<string, unknown>;
 
   @IsOptional()
   @IsBoolean()

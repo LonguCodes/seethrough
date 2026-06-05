@@ -27,7 +27,7 @@ export class AuthMethod extends BaseEntity {
   defaultRole: string;
 
   @Column({ type: 'json' })
-  settings: Record<string, any>;
+  settings: Record<string, unknown>;
 
   @ManyToOne(() => MfaConfig, (mfa) => mfa.authMethods, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'mfa_config_id' })

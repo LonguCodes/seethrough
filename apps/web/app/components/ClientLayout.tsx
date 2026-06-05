@@ -1,7 +1,9 @@
 'use client';
 
 import { type ReactNode } from 'react';
+
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
 import { AuthProvider } from '../../lib/use-auth';
 
 const queryClient = new QueryClient({

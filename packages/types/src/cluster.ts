@@ -1,22 +1,3 @@
-// === Node Target Types ===
-
-export interface NodeMetricData {
-  machineId: string;
-  cpuUsage: number;
-  ramUsage: number;
-  diskUsage: number;
-  pvcUsage: PvcUsageEntry[];
-  timestamp: Date;
-}
-
-export interface PvcUsageEntry {
-  name: string;
-  mount: string;
-  used: number;
-}
-
-// === Pod Target Types ===
-
 export interface ContainerStatusData {
   name: string;
   ready: boolean;
@@ -37,7 +18,11 @@ export interface PodInfoData {
   containerStatuses?: ContainerStatusData[];
 }
 
-// === PVC Target Types ===
+export interface PvcUsageEntry {
+  name: string;
+  mount: string;
+  used: number;
+}
 
 export interface PvcInfoData {
   name: string;
@@ -49,8 +34,6 @@ export interface PvcInfoData {
   volumeName?: string;
   accessModes?: string[];
 }
-
-// === Deployment Target Types ===
 
 export interface DeploymentConditionData {
   type: string;
@@ -70,8 +53,6 @@ export interface DeploymentInfoData {
   conditions: DeploymentConditionData[];
 }
 
-// === StatefulSet Target Types ===
-
 export interface StatefulSetConditionData {
   type: string;
   status: string;
@@ -89,8 +70,6 @@ export interface StatefulSetInfoData {
   availableReplicas: number;
   conditions: StatefulSetConditionData[];
 }
-
-// === DaemonSet Target Types ===
 
 export interface DaemonSetConditionData {
   type: string;
@@ -111,7 +90,14 @@ export interface DaemonSetInfoData {
   conditions: DaemonSetConditionData[];
 }
 
-// === Cluster Info Type ===
+export interface NodeMetricData {
+  machineId: string;
+  cpuUsage: number;
+  ramUsage: number;
+  diskUsage: number;
+  pvcUsage: PvcUsageEntry[];
+  timestamp: Date;
+}
 
 export interface ClusterInfoData {
   nodes: Record<string, unknown>[];
@@ -122,11 +108,4 @@ export interface ClusterInfoData {
   statefulSets: StatefulSetInfoData[];
   daemonSets: DaemonSetInfoData[];
   timestamp: string;
-}
-
-// === Target Item (what getTargets returns) ===
-
-export interface TargetItem<T = unknown> {
-  id: string;
-  data: T;
 }

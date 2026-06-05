@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+
 import { Shield, Plus, Settings, Trash2, ToggleLeft, ToggleRight, AlertCircle } from 'lucide-react';
+
 import api from '../../lib/api';
 
 interface MfaConfig {

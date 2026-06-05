@@ -2,8 +2,12 @@ import { Controller, Post, Body, Request, Get, Param, Query, Res } from '@nestjs
 import type { Request as ExpressRequest, Response } from 'express';
 
 import { Public } from '../decorators/public.decorator.js';
-import type { RefreshDto } from '../dto/refresh.dto.js';
-import type { AuthService , LoginResult } from '../services/auth.service';
+import  { RefreshDto } from '../dto/refresh.dto.js';
+import type { AuthenticatedUser } from '../guards/jwt-auth.guard.js';
+import { AuthService } from "../services";
+import type { LoginResult } from "../services";
+
+type AuthenticatedRequest = ExpressRequest & { user: AuthenticatedUser };
 
 
 @Controller('auth')
@@ -29,8 +33,8 @@ export class AuthController {
    */
   @Public()
   @Post('login')
-  async login(@Body() body: Record<string, any>) {
-    const { configId, ...credentials } = body;
+  async login(@Body() body: Record<string, unknown>) {
+    const { configId, ...credentials } = body as { configId: string; [key: string]: unknown };
     if (!configId) {
       throw new Error('configId is required');
     }
@@ -55,7 +59,7 @@ export class AuthController {
   @Get('callback/:configId')
   async callback(
     @Param('configId') configId: string,
-    @Query() query: Record<string, any>,
+    @Query() query: Record<string, unknown>,
     @Res() res: Response,
   ) {
     const frontendUrl = process.env.WEB_BASE_URL || 'http://localhost:3000';
@@ -71,9 +75,10 @@ export class AuthController {
       res.redirect(
         `${frontendUrl}/login?sso_access_token=${encodeURIComponent(result.accessToken!)}&sso_refresh_token=${encodeURIComponent(result.refreshToken!)}`,
       );
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Authentication failed';
       res.redirect(
-        `${frontendUrl}/login?sso_error=${encodeURIComponent(err.message || 'Authentication failed')}`,
+        `${frontendUrl}/login?sso_error=${encodeURIComponent(message)}`,
       );
     }
   }
@@ -85,7 +90,7 @@ export class AuthController {
   }
 
   @Get('me')
-  getProfile(@Request() req: ExpressRequest & { user: any }) {
+  getProfile(@Request() req: AuthenticatedRequest) {
     return req.user;
   }
 }

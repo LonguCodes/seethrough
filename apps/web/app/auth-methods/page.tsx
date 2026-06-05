@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+
 import { AnimatePresence, motion } from 'framer-motion';
 import { Shield, Plus, Settings, Trash2, ToggleLeft, ToggleRight, AlertCircle, ChevronDown, ChevronUp, GripVertical } from 'lucide-react';
+
 import api from '../../lib/api';
 
 interface MfaConfigRef {

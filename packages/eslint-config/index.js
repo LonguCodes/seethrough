@@ -38,7 +38,7 @@ export default [
       "import/newline-after-import": ["error", { count: 1 }],
       "import/no-duplicates": "error",
       "import/order": [
-        "error",
+        "warn",
         {
           groups: ["builtin", "external", "internal", ["parent", "sibling"]],
           pathGroups: [

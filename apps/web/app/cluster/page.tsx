@@ -1,12 +1,15 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
+
 import { Layers, Globe, Server, Box } from 'lucide-react';
-import { useRequirePermission } from '../../lib/use-require-permission';
+import Link from 'next/link';
+
+import api from '../../lib/api';
 import { PERMISSIONS } from '../../lib/permissions';
-import PageLoading from '../components/PageLoading';
+import { useRequirePermission } from '../../lib/use-require-permission';
 import AccessDenied from '../components/AccessDenied';
+import PageLoading from '../components/PageLoading';
 
 interface Pod {
   name: string;
@@ -25,7 +28,6 @@ interface ClusterInfo {
   timestamp: string;
 }
 
-import api from '../../lib/api';
 
 export default function ClusterPage() {
   const { authorized, loading: authLoading } = useRequirePermission(PERMISSIONS.CLUSTER_VIEW);

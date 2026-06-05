@@ -9,15 +9,19 @@ import {
   Request,
   UseGuards,
 } from '@nestjs/common';
+import type { Request as ExpressRequest } from 'express';
 
 import { RequirePermissions } from '../decorators/permissions.decorator.js';
 import { Public } from '../decorators/public.decorator.js';
-import type { AcceptInvitationDto } from '../dto/accept-invitation.dto.js';
-import type { CreateUserDto } from '../dto/create-user.dto.js';
-import type { UpdateUserDto } from '../dto/update-user.dto.js';
+import  { AcceptInvitationDto } from '../dto/accept-invitation.dto.js';
+import  { CreateUserDto } from '../dto/create-user.dto.js';
+import  { UpdateUserDto } from '../dto/update-user.dto.js';
+import type { AuthenticatedUser } from '../guards/jwt-auth.guard.js';
 import { PermissionsGuard } from '../guards/permissions.guard.js';
 import { PERMISSIONS } from '../permissions.js';
-import type { AuthService } from '../services/auth.service';
+import { AuthService } from "../services";
+
+type AuthenticatedRequest = ExpressRequest & { user: AuthenticatedUser };
 
 @Controller('users')
 export class UsersController {
@@ -50,7 +54,7 @@ export class UsersController {
   @Delete(':id')
   @UseGuards(PermissionsGuard)
   @RequirePermissions(PERMISSIONS.USERS_MANAGE)
-  async remove(@Param('id') id: string, @Request() req: any) {
+  async remove(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
     await this.authService.deleteUser(id, req.user.id);
     return { message: 'User deleted' };
   }

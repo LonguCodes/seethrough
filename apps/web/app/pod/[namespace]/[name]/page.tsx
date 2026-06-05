@@ -1,14 +1,15 @@
-'use client';
+"use client";
 
-import { useEffect, useState, use } from 'react';
-import { ArrowLeft } from 'lucide-react';
-import Link from 'next/link';
-import PodDetails from '../../../PodDetails';
-import api from '../../../../lib/api';
-import { useRequirePermission } from '../../../../lib/use-require-permission';
-import { PERMISSIONS } from '../../../../lib/permissions';
-import PageLoading from '../../../components/PageLoading';
-import AccessDenied from '../../../components/AccessDenied';
+import { useEffect, useState, use } from "react";
+
+import { ArrowLeft } from "lucide-react";
+import Link from "next/link";
+
+import api from "../../../../lib/api";
+import { PERMISSIONS } from "../../../../lib/permissions";
+import { useRequirePermission } from "../../../../lib/use-require-permission";
+import AccessDenied from "../../../components/AccessDenied";
+import PageLoading from "../../../components/PageLoading";
 
 interface Pod {
   name: string;
@@ -20,14 +21,20 @@ interface Pod {
   labels?: Record<string, string>;
 }
 
-export default function PodPage({ params }: { params: Promise<{ namespace: string; name: string }> }) {
+export default function PodPage({
+  params,
+}: {
+  params: Promise<{ namespace: string; name: string }>;
+}) {
   const { authorized, loading: authLoading } = useRequirePermission(PERMISSIONS.PODS_VIEW);
   const { namespace, name } = use(params);
   const [pod, setPod] = useState<Pod | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.get(`cluster-info/pods/${namespace}/${name}`).json()
+    api
+      .get(`cluster-info/pods/${namespace}/${name}`)
+      .json()
       .then((data: any) => {
         setPod(data);
         setLoading(false);
@@ -66,7 +73,10 @@ export default function PodPage({ params }: { params: Promise<{ namespace: strin
     return (
       <div className="min-h-screen bg-[var(--background)] flex flex-col items-center justify-center gap-4">
         <h1 className="text-2xl font-bold text-slate-300">Pod not found</h1>
-        <Link href="/" className="px-4 py-2 bg-white/5 rounded-xl hover:bg-white/10 transition-colors">
+        <Link
+          href="/"
+          className="px-4 py-2 bg-white/5 rounded-xl hover:bg-white/10 transition-colors"
+        >
           Back to Dashboard
         </Link>
       </div>
@@ -93,7 +103,7 @@ export default function PodPage({ params }: { params: Promise<{ namespace: strin
 
 // Internal version of PodDetails tuned for page view
 function PodDetailsView({ pod }: { pod: Pod }) {
-  // I will refactor the existing PodDetails component logic here 
+  // I will refactor the existing PodDetails component logic here
   // or just import the component if I make it flexible.
   // For now I will build a dedicated page view for maximum "premium" feel.
   return (
@@ -101,9 +111,15 @@ function PodDetailsView({ pod }: { pod: Pod }) {
       <header className="flex justify-between items-end">
         <div>
           <div className="flex items-center gap-3 mb-2">
-            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${pod.status === 'Running' ? 'bg-emerald-500/10 text-emerald-500' :
-                pod.status === 'Pending' ? 'bg-amber-500/10 text-amber-500' : 'bg-rose-500/10 text-rose-500'
-              }`}>
+            <span
+              className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                pod.status === "Running"
+                  ? "bg-emerald-500/10 text-emerald-500"
+                  : pod.status === "Pending"
+                    ? "bg-amber-500/10 text-amber-500"
+                    : "bg-rose-500/10 text-rose-500"
+              }`}
+            >
               {pod.status}
             </span>
             <span className="text-slate-600">/</span>
@@ -112,8 +128,10 @@ function PodDetailsView({ pod }: { pod: Pod }) {
           <h1 className="text-4xl font-bold tracking-tight">{pod.name}</h1>
         </div>
         <div className="text-right">
-          <div className="text-xs text-slate-500 mb-1 leading-none uppercase tracking-widest">Pod IP</div>
-          <div className="text-xl font-mono text-slate-300">{pod.podIP || '---.---.---.---'}</div>
+          <div className="text-xs text-slate-500 mb-1 leading-none uppercase tracking-widest">
+            Pod IP
+          </div>
+          <div className="text-xl font-mono text-slate-300">{pod.podIP || "---.---.---.---"}</div>
         </div>
       </header>
 
@@ -121,23 +139,37 @@ function PodDetailsView({ pod }: { pod: Pod }) {
         <div className="lg:col-span-1 flex flex-col gap-8">
           {/* Info Section */}
           <div className="glass p-6 rounded-3xl border border-white/5 bg-white/[0.01]">
-            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-6">Environment</h3>
+            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-6">
+              Environment
+            </h3>
             <div className="grid gap-4">
               <DetailItem label="Node" value={pod.nodeName} />
-              <DetailItem label="Started" value={pod.startTime ? new Date(pod.startTime).toLocaleString() : 'Recently'} />
+              <DetailItem
+                label="Started"
+                value={pod.startTime ? new Date(pod.startTime).toLocaleString() : "Recently"}
+              />
               <DetailItem label="Namespace" value={pod.namespace} />
             </div>
           </div>
 
           {/* Labels Section */}
           <div className="glass p-6 rounded-3xl border border-white/5 bg-white/[0.01]">
-            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">Labels</h3>
+            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">
+              Labels
+            </h3>
             <div className="flex flex-wrap gap-2">
-              {pod.labels ? Object.entries(pod.labels).map(([k, v]) => (
-                <div key={k} className="text-[10px] px-2 py-1 rounded-lg bg-white/5 border border-white/5 text-slate-400">
-                  {k}: <span className="text-slate-300">{v}</span>
-                </div>
-              )) : <div className="text-xs text-slate-600 italics">No labels assigned</div>}
+              {pod.labels ? (
+                Object.entries(pod.labels).map(([k, v]) => (
+                  <div
+                    key={k}
+                    className="text-[10px] px-2 py-1 rounded-lg bg-white/5 border border-white/5 text-slate-400"
+                  >
+                    {k}: <span className="text-slate-300">{v}</span>
+                  </div>
+                ))
+              ) : (
+                <div className="text-xs text-slate-600 italics">No labels assigned</div>
+              )}
             </div>
           </div>
         </div>
@@ -173,14 +205,11 @@ function DetailItem({ label, value }: { label: string; value: string }) {
 }
 
 // We wrap LogViewer for the page view
-import LogViewerComponent from '../../../LogViewer';
+import LogViewerComponent from "../../../LogViewer";
+import PodDetails from "../../../PodDetails";
+
 function PodDetailsLogViewer({ podName, namespace }: { podName: string; namespace: string }) {
   return (
-    <LogViewerComponent
-      podName={podName}
-      namespace={namespace}
-      onClose={() => { }}
-      isEmbedded
-    />
+    <LogViewerComponent podName={podName} namespace={namespace} onClose={() => {}} isEmbedded />
   );
 }
