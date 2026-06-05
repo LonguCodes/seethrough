@@ -42,7 +42,9 @@ export class AlertsService {
   }
 
   async updateTrigger(id: string, dto: UpdateTriggerDto) {
-    const trigger = await AlertTrigger.findOneBy({ id });
+    const trigger = await AlertTrigger.createQueryBuilder('trigger')
+      .where('trigger.id = :id', { id })
+      .getOne();
     if (!trigger) {
       throw new NotFoundException('Trigger not found');
     }
@@ -59,7 +61,9 @@ export class AlertsService {
   }
 
   async findOneTrigger(id: string) {
-    const trigger = await AlertTrigger.findOneBy({ id });
+    const trigger = await AlertTrigger.createQueryBuilder('trigger')
+      .where('trigger.id = :id', { id })
+      .getOne();
     if (!trigger) return null;
 
     const integrationIds = await this.integrationService.getTriggerIntegrationIds(id);
@@ -67,7 +71,7 @@ export class AlertsService {
   }
 
   async findAllTriggers() {
-    const triggers = await AlertTrigger.find();
+    const triggers = await AlertTrigger.createQueryBuilder('trigger').getMany();
     return Promise.all(
       triggers.map(async (t) => ({
         ...t,
@@ -81,7 +85,9 @@ export class AlertsService {
   }
 
   findEnabledTriggers() {
-    return AlertTrigger.findBy({ enabled: true });
+    return AlertTrigger.createQueryBuilder('trigger')
+      .where('trigger.enabled = :enabled', { enabled: true })
+      .getMany();
   }
 
   // Alert Instance Methods
@@ -115,10 +121,10 @@ export class AlertsService {
   }
 
   async findActiveAlerts(): Promise<Alert[]> {
-    return Alert.find({
-      where: { status: AlertStatus.ACTIVE },
-      relations: ['trigger'],
-    });
+    return Alert.createQueryBuilder('alert')
+      .leftJoinAndSelect('alert.trigger', 'trigger')
+      .where('alert.status = :status', { status: AlertStatus.ACTIVE })
+      .getMany();
   }
 
   async resolveAlert(id: string, autoResolved = false) {
@@ -127,7 +133,9 @@ export class AlertsService {
       resolvedAt: new Date(),
       autoResolved,
     });
-    return Alert.findOneBy({ id });
+    return Alert.createQueryBuilder('alert')
+      .where('alert.id = :id', { id })
+      .getOne();
   }
 
   async updateLastMatchedAt(id: string) {

@@ -70,9 +70,12 @@ export class MfaService implements OnModuleInit {
     const mfaConfig = authMethod.mfaConfig ;
     if (!mfaConfig.enabled) return null;
 
-    const userEnrollment = await UserMfa.findOne({
-      where: { user: { id: userId }, mfaConfig: { id: mfaConfig.id }, enabled: true, verified: true },
-    });
+    const userEnrollment = await UserMfa.createQueryBuilder('userMfa')
+      .where('userMfa.user.id = :userId', { userId })
+      .andWhere('userMfa.mfaConfig.id = :mfaConfigId', { mfaConfigId: mfaConfig.id })
+      .andWhere('userMfa.enabled = :enabled', { enabled: true })
+      .andWhere('userMfa.verified = :verified', { verified: true })
+      .getOne();
 
     if (!userEnrollment) return null;
 
@@ -99,10 +102,15 @@ export class MfaService implements OnModuleInit {
       throw new BadRequestException('Invalid or expired challenge token');
     }
 
-    const user = await User.findOneBy({ id: challenge.userId });
+    const user = await User.createQueryBuilder('user')
+      .where('user.id = :id', { id: challenge.userId })
+      .getOne();
     if (!user) throw new UnauthorizedException('User not found');
 
-    const mfaConfig = await MfaConfig.findOneBy({ id: challenge.mfaConfigId, enabled: true });
+    const mfaConfig = await MfaConfig.createQueryBuilder('mfaConfig')
+      .where('mfaConfig.id = :id', { id: challenge.mfaConfigId })
+      .andWhere('mfaConfig.enabled = :enabled', { enabled: true })
+      .getOne();
     if (!mfaConfig) throw new BadRequestException('MFA configuration is not available');
 
     const enrollment = await UserMfa.createQueryBuilder('mfa')
@@ -132,10 +140,16 @@ export class MfaService implements OnModuleInit {
   }
 
   async enrollUser(userId: string, mfaConfigId: string): Promise<UserMfa> {
-    const mfaConfig = await MfaConfig.findOneBy({ id: mfaConfigId, enabled: true });
+    const mfaConfig = await MfaConfig.createQueryBuilder('mfaConfig')
+      .where('mfaConfig.id = :id', { id: mfaConfigId })
+      .andWhere('mfaConfig.enabled = :enabled', { enabled: true })
+      .getOne();
     if (!mfaConfig) throw new NotFoundException('MFA configuration not found or disabled');
 
-    const existing = await UserMfa.findOne({ where: { user: { id: userId }, mfaConfig: { id: mfaConfigId } } });
+    const existing = await UserMfa.createQueryBuilder('userMfa')
+      .where('userMfa.user.id = :userId', { userId })
+      .andWhere('userMfa.mfaConfig.id = :mfaConfigId', { mfaConfigId })
+      .getOne();
     if (existing) return existing;
 
     const enrollment = UserMfa.create({
@@ -185,11 +199,17 @@ export class MfaService implements OnModuleInit {
   }
 
   async getUserEnrollments(userId: string): Promise<Array<UserMfa & { secret?: string }>> {
-    return UserMfa.find({where: {user: {id: userId}}, relations: ['mfaConfig']});
+    return UserMfa.createQueryBuilder('userMfa')
+      .leftJoinAndSelect('userMfa.mfaConfig', 'mfaConfig')
+      .where('userMfa.user.id = :userId', { userId })
+      .getMany();
   }
 
   async getPasskeyRegistrationOptions(userId: string, username: string, mfaConfigId: string): Promise<any> {
-    const mfaConfig = await MfaConfig.findOneBy({ id: mfaConfigId, enabled: true });
+    const mfaConfig = await MfaConfig.createQueryBuilder('mfaConfig')
+      .where('mfaConfig.id = :id', { id: mfaConfigId })
+      .andWhere('mfaConfig.enabled = :enabled', { enabled: true })
+      .getOne();
     if (!mfaConfig) throw new NotFoundException('MFA configuration not found or disabled');
     return this.passkeyStrategy.generateRegistrationOptions(userId, username, mfaConfig);
   }
@@ -198,7 +218,10 @@ export class MfaService implements OnModuleInit {
     const credential = await this.passkeyStrategy.verifyRegistration(userId, response);
     if (!credential) throw new BadRequestException('Passkey registration verification failed');
 
-    const mfaConfig = await MfaConfig.findOneBy({ id: mfaConfigId, enabled: true });
+    const mfaConfig = await MfaConfig.createQueryBuilder('mfaConfig')
+      .where('mfaConfig.id = :id', { id: mfaConfigId })
+      .andWhere('mfaConfig.enabled = :enabled', { enabled: true })
+      .getOne();
     if (!mfaConfig) throw new NotFoundException('MFA configuration not found or disabled');
 
     const enrollment = UserMfa.create({
@@ -222,12 +245,18 @@ export class MfaService implements OnModuleInit {
       throw new BadRequestException('Invalid or expired challenge token');
     }
 
-    const mfaConfig = await MfaConfig.findOneBy({ id: challenge.mfaConfigId, enabled: true });
+    const mfaConfig = await MfaConfig.createQueryBuilder('mfaConfig')
+      .where('mfaConfig.id = :id', { id: challenge.mfaConfigId })
+      .andWhere('mfaConfig.enabled = :enabled', { enabled: true })
+      .getOne();
     if (!mfaConfig) throw new BadRequestException('Passkey MFA is not configured');
 
-    const enrollments = await UserMfa.find({
-      where: { user: { id: challenge.userId }, mfaConfig: { id: mfaConfig.id }, enabled: true, verified: true },
-    });
+    const enrollments = await UserMfa.createQueryBuilder('userMfa')
+      .where('userMfa.user.id = :userId', { userId: challenge.userId })
+      .andWhere('userMfa.mfaConfig.id = :mfaConfigId', { mfaConfigId: mfaConfig.id })
+      .andWhere('userMfa.enabled = :enabled', { enabled: true })
+      .andWhere('userMfa.verified = :verified', { verified: true })
+      .getMany();
 
     if (enrollments.length === 0) {
       throw new BadRequestException('No passkey enrollments found');
@@ -242,7 +271,10 @@ export class MfaService implements OnModuleInit {
   }
 
   async removeEnrollment(userId: string, enrollmentId: string): Promise<void> {
-    const enrollment = await UserMfa.findOne({ where: { id: enrollmentId, user: { id: userId } } });
+    const enrollment = await UserMfa.createQueryBuilder('userMfa')
+      .where('userMfa.id = :id', { id: enrollmentId })
+      .andWhere('userMfa.user.id = :userId', { userId })
+      .getOne();
     if (!enrollment) throw new NotFoundException('Enrollment not found');
     await enrollment.remove();
   }

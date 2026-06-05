@@ -11,7 +11,9 @@ export class TokenService {
     constructor(private readonly jwtService: JwtService) {}
 
     async generateTokens(user: User) {
-        const role = await Role.findOneBy({ name: user.role?.name });
+        const role = await Role.createQueryBuilder('role')
+            .where('role.name = :name', { name: user.role?.name })
+            .getOne();
         const permissions: string[] = role?.superadmin
             ? [...ALL_PERMISSIONS]
             : (role?.permissions ?? []);

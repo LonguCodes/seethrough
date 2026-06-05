@@ -32,19 +32,42 @@ Always use TypeORM's ActiveRecord pattern. All entities extend `BaseEntity`, giv
 
 The root `TypeOrmModule.forRootAsync` already has `autoLoadEntities: true`, so `TypeOrmModule.forFeature()` is unnecessary and should NOT be used.
 
-```typescript
-// CORRECT — static methods on entity classes:
-const user = await User.findOneBy({ id: userId });
-const role = Role.create({ name: 'admin', permissions: [] });
-await role.save();
-await user.remove();
-const count = await User.count({ where: { active: true } });
+### QueryBuilder Requirement
 
-// For complex queries:
+ALL database queries MUST use the `createQueryBuilder` method. Do NOT use `find`, `findOne`, `findOneBy`, `findBy`, `findAndCount`, `findByOrFail`, `count`, or `exist` static methods. Always build queries using `createQueryBuilder` with explicit parameterized conditions.
+
+```typescript
+// CORRECT — always use createQueryBuilder:
+const user = await User.createQueryBuilder('user')
+  .where('user.id = :id', { id: userId })
+  .getOne();
+
+const users = await User.createQueryBuilder('user')
+  .leftJoinAndSelect('user.role', 'role')
+  .getMany();
+
+const count = await User.createQueryBuilder('user')
+  .where('user.active = :active', { active: true })
+  .getCount();
+
+const mfaConfigs = await MfaConfig.createQueryBuilder('mfaConfig')
+  .where('mfaConfig.enabled = :enabled', { enabled: true })
+  .getMany();
+
+// For selecting hidden columns (e.g. secrets):
 const result = await UserMfa.createQueryBuilder('mfa')
   .addSelect(['mfa.secret'])
-  .where({ id: enrollmentId })
+  .where('mfa.id = :id', { id: enrollmentId })
   .getOne();
+```
+
+```typescript
+// WRONG — do NOT use find/findOne/findBy/count methods:
+const user = await User.findOneBy({ id: userId });
+const users = await User.find({ relations: ['role'] });
+const count = await User.count({ where: { active: true } });
+const configs = await MfaConfig.find({ where: { enabled: true } });
+const trigger = await AlertTrigger.findBy({ enabled: true });
 ```
 
 ```typescript
@@ -73,4 +96,4 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 })
 ```
 
-This keeps the code concise and avoids unnecessary dependency injection for database operations.
+This keeps queries consistent, explicit, and avoids ORM magic. Using `createQueryBuilder` ensures all query conditions are visible and parameterized.

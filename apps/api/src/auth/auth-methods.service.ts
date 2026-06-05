@@ -7,36 +7,41 @@ import { UpdateAuthMethodDto } from './dto/update-auth-method.dto.js';
 @Injectable()
 export class AuthMethodsService {
   async findAll(): Promise<AuthMethod[]> {
-    return AuthMethod.find({
-      relations: ['mfaConfig'],
-    });
+    return AuthMethod.createQueryBuilder('authMethod')
+      .leftJoinAndSelect('authMethod.mfaConfig', 'mfaConfig')
+      .getMany();
   }
 
   async findById(id: string): Promise<AuthMethod> {
-    const config = await AuthMethod.findOne({
-      where: { id },
-      relations: ['mfaConfig'],
-    });
+    const config = await AuthMethod.createQueryBuilder('authMethod')
+      .leftJoinAndSelect('authMethod.mfaConfig', 'mfaConfig')
+      .where('authMethod.id = :id', { id })
+      .getOne();
     if (!config) throw new NotFoundException('Auth method configuration not found');
     return config;
   }
 
   async findByType(type: string): Promise<AuthMethod | null> {
-    return AuthMethod.findOne({
-      where: { type: type as any, enabled: true },
-      relations: ['mfaConfig'],
-    });
+    return AuthMethod.createQueryBuilder('authMethod')
+      .leftJoinAndSelect('authMethod.mfaConfig', 'mfaConfig')
+      .where('authMethod.type = :type', { type })
+      .andWhere('authMethod.enabled = :enabled', { enabled: true })
+      .getOne();
   }
 
   async create(dto: CreateAuthMethodDto): Promise<AuthMethod> {
-    const existingByName = await AuthMethod.findOneBy({ name: dto.name });
+    const existingByName = await AuthMethod.createQueryBuilder('authMethod')
+      .where('authMethod.name = :name', { name: dto.name })
+      .getOne();
     if (existingByName) {
       throw new ConflictException('An auth method configuration with this name already exists');
     }
 
     // Only one password strategy allowed
     if (dto.type === 'password') {
-      const existingPassword = await AuthMethod.findOneBy({ type: 'password' as any });
+      const existingPassword = await AuthMethod.createQueryBuilder('authMethod')
+        .where('authMethod.type = :type', { type: 'password' })
+        .getOne();
       if (existingPassword) {
         throw new BadRequestException('A password authentication method already exists. Only one password method can be configured.');
       }
@@ -56,7 +61,9 @@ export class AuthMethodsService {
 
     // Link MFA if specified
     if (dto.mfaConfigId) {
-      const mfaConfig = await MfaConfig.findOneBy({ id: dto.mfaConfigId });
+      const mfaConfig = await MfaConfig.createQueryBuilder('mfaConfig')
+        .where('mfaConfig.id = :id', { id: dto.mfaConfigId })
+        .getOne();
       if (!mfaConfig) throw new NotFoundException('MFA configuration not found');
       saved.mfaConfig = mfaConfig;
       await saved.save();
@@ -70,7 +77,9 @@ export class AuthMethodsService {
 
     // Block disabling the only enabled auth method
     if (dto.enabled === false && config.enabled) {
-      const enabledCount = await AuthMethod.count({ where: { enabled: true } });
+      const enabledCount = await AuthMethod.createQueryBuilder('authMethod')
+        .where('authMethod.enabled = :enabled', { enabled: true })
+        .getCount();
       if (enabledCount <= 1) {
         throw new BadRequestException('Cannot disable the only enabled authentication method. At least one method must remain active.');
       }
@@ -80,7 +89,9 @@ export class AuthMethodsService {
       if (dto.mfaConfigId === null || dto.mfaConfigId === '') {
         config.mfaConfig = null;
       } else {
-        const mfaConfig = await MfaConfig.findOneBy({ id: dto.mfaConfigId });
+        const mfaConfig = await MfaConfig.createQueryBuilder('mfaConfig')
+          .where('mfaConfig.id = :id', { id: dto.mfaConfigId })
+          .getOne();
         if (!mfaConfig) throw new NotFoundException('MFA configuration not found');
         config.mfaConfig = mfaConfig ;
       }
@@ -93,7 +104,7 @@ export class AuthMethodsService {
 
   async delete(id: string): Promise<void> {
     const config = await this.findById(id);
-    const totalCount = await AuthMethod.count();
+    const totalCount = await AuthMethod.createQueryBuilder('authMethod').getCount();
 
     // Block deleting the only remaining auth method
     if (totalCount <= 1) {
@@ -107,7 +118,9 @@ export class AuthMethodsService {
     const authMethod = await this.findById(authMethodId);
 
     if (mfaConfigId) {
-      const mfaConfig = await MfaConfig.findOneBy({ id: mfaConfigId });
+      const mfaConfig = await MfaConfig.createQueryBuilder('mfaConfig')
+        .where('mfaConfig.id = :id', { id: mfaConfigId })
+        .getOne();
       if (!mfaConfig) throw new NotFoundException('MFA configuration not found');
       authMethod.mfaConfig = mfaConfig as any;
     } else {
@@ -118,10 +131,10 @@ export class AuthMethodsService {
   }
 
   async getActiveMethods(): Promise<AuthMethod[]> {
-    return AuthMethod.find({
-      where: { enabled: true },
-      relations: ['mfaConfig'],
-      order: { priority: 'ASC' },
-    });
+    return AuthMethod.createQueryBuilder('authMethod')
+      .leftJoinAndSelect('authMethod.mfaConfig', 'mfaConfig')
+      .where('authMethod.enabled = :enabled', { enabled: true })
+      .orderBy('authMethod.priority', 'ASC')
+      .getMany();
   }
 }

@@ -12,10 +12,10 @@ export class PasswordStrategy implements LoginStrategy {
     const { username, password } = credentials;
     if (!username || !password) return null;
 
-    const user = await User.findOne({
-      where: { username },
-      select: ['id', 'username', 'password', 'role'],
-    });
+    const user = await User.createQueryBuilder('user')
+      .select(['user.id', 'user.username', 'user.password', 'user.role'])
+      .where('user.username = :username', { username })
+      .getOne();
 
     if (user && await bcrypt.compare(password, user.password)) {
       const { password: _, ...result } = user;

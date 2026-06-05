@@ -59,7 +59,7 @@ export class AuthService implements OnModuleInit {
   // --- Role Management ---
 
   private async provisionDefaultRoles() {
-    const roleCount = await Role.count();
+    const roleCount = await Role.createQueryBuilder('role').getCount();
     if (roleCount > 0) return;
 
     for (const def of DEFAULT_ROLES) {
@@ -74,15 +74,19 @@ export class AuthService implements OnModuleInit {
   }
 
   async findAllRoles(): Promise<Role[]> {
-    return Role.find();
+    return Role.createQueryBuilder('role').getMany();
   }
 
   async findRoleByName(name: string): Promise<Role | null> {
-    return Role.findOneBy({ name });
+    return Role.createQueryBuilder('role')
+      .where('role.name = :name', { name })
+      .getOne();
   }
 
   async createRole(name: string, superadmin: boolean, permissions: string[]): Promise<Role> {
-    const existing = await Role.findOneBy({ name });
+    const existing = await Role.createQueryBuilder('role')
+      .where('role.name = :name', { name })
+      .getOne();
     if (existing) {
       throw new ConflictException(`Role "${name}" already exists`);
     }
@@ -94,12 +98,16 @@ export class AuthService implements OnModuleInit {
     id: string,
     updates: { name?: string; superadmin?: boolean; permissions?: string[] },
   ): Promise<Role> {
-    const role = await Role.findOneBy({ id });
+    const role = await Role.createQueryBuilder('role')
+      .where('role.id = :id', { id })
+      .getOne();
     if (!role) {
       throw new NotFoundException('Role not found');
     }
     if (updates.name !== undefined) {
-      const existing = await Role.findOneBy({ name: updates.name });
+      const existing = await Role.createQueryBuilder('role')
+        .where('role.name = :name', { name: updates.name })
+        .getOne();
       if (existing && existing.id !== id) {
         throw new ConflictException(`Role "${updates.name}" already exists`);
       }
@@ -115,11 +123,15 @@ export class AuthService implements OnModuleInit {
   }
 
   async deleteRole(id: string): Promise<void> {
-    const role = await Role.findOneBy({ id });
+    const role = await Role.createQueryBuilder('role')
+      .where('role.id = :id', { id })
+      .getOne();
     if (!role) {
       throw new NotFoundException('Role not found');
     }
-    const usersWithRole = await User.count({ where: { role: { id } } });
+    const usersWithRole = await User.createQueryBuilder('user')
+      .where('user.role.id = :id', { id })
+      .getCount();
     if (usersWithRole > 0) {
       throw new ConflictException(
         `Cannot delete role "${role.name}" because ${usersWithRole} user(s) are assigned to it`,
@@ -148,7 +160,9 @@ export class AuthService implements OnModuleInit {
    * GET /auth/configurations/:id — returns public info about a method
    */
   async getConfiguration(configId: string): Promise<{ id: string; name: string; type: string; enabled: boolean }> {
-    const config = await AuthMethod.findOneBy({ id: configId });
+    const config = await AuthMethod.createQueryBuilder('authMethod')
+      .where('authMethod.id = :id', { id: configId })
+      .getOne();
     if (!config || !config.enabled) {
       throw new NotFoundException('Configuration not found or disabled');
     }
@@ -174,7 +188,11 @@ export class AuthService implements OnModuleInit {
 
 
   async login(configId: string, credentials: Record<string, any>): Promise<LoginResult> {
-    const config = await AuthMethod.findOne({ where: { id: configId, enabled: true }, relations: ['mfaConfig'] });
+    const config = await AuthMethod.createQueryBuilder('authMethod')
+      .leftJoinAndSelect('authMethod.mfaConfig', 'mfaConfig')
+      .where('authMethod.id = :id', { id: configId })
+      .andWhere('authMethod.enabled = :enabled', { enabled: true })
+      .getOne();
     if (!config) {
       throw new NotFoundException('Configuration not found or disabled');
     }
@@ -222,7 +240,11 @@ export class AuthService implements OnModuleInit {
    * GET /auth/callback/:configId — handle SSO callback
    */
   async handleCallback(configId: string, query: Record<string, any>): Promise<LoginResult> {
-    const config = await AuthMethod.findOne({ where: { id: configId, enabled: true }, relations: ['mfaConfig'] });
+    const config = await AuthMethod.createQueryBuilder('authMethod')
+      .leftJoinAndSelect('authMethod.mfaConfig', 'mfaConfig')
+      .where('authMethod.id = :id', { id: configId })
+      .andWhere('authMethod.enabled = :enabled', { enabled: true })
+      .getOne();
     if (!config) {
       throw new NotFoundException('Configuration not found or disabled');
     }
@@ -247,14 +269,18 @@ export class AuthService implements OnModuleInit {
       throw new UnauthorizedException('No identifiable user attribute received from provider');
     }
 
-    let user = await User.findOneBy({ username });
+    let user = await User.createQueryBuilder('user')
+      .where('user.username = :username', { username })
+      .getOne();
 
     if (!user) {
       if (!config.autoCreateUsers) {
         throw new UnauthorizedException('User does not exist and auto-creation is disabled');
       }
 
-      const role = await Role.findOneBy({ name: config.defaultRole || 'viewer' });
+      const role = await Role.createQueryBuilder('role')
+        .where('role.name = :name', { name: config.defaultRole || 'viewer' })
+        .getOne();
       user = User.create({
         username,
         password: '',
@@ -272,10 +298,10 @@ export class AuthService implements OnModuleInit {
   }
 
   async refresh(token: string) {
-    const storedToken = await Session.findOne({
-      where: { token },
-      relations: ['user'],
-    });
+    const storedToken = await Session.createQueryBuilder('session')
+      .leftJoinAndSelect('session.user', 'user')
+      .where('session.token = :token', { token })
+      .getOne();
 
     if (!storedToken || storedToken.expiresAt < new Date()) {
       if (storedToken) await storedToken.remove();
@@ -293,7 +319,7 @@ export class AuthService implements OnModuleInit {
 
   private async provisionDefaultUser() {
     // Provision default password auth method if none exist
-    const methodCount = await AuthMethod.count();
+    const methodCount = await AuthMethod.createQueryBuilder('authMethod').getCount();
     if (methodCount === 0) {
       const method = new AuthMethod();
       method.name = 'Local Login';
@@ -311,9 +337,11 @@ export class AuthService implements OnModuleInit {
       console.log('Provisioned default password auth method');
     }
 
-    const userCount = await User.count();
+    const userCount = await User.createQueryBuilder('user').getCount();
     if (userCount === 0) {
-      const superadminRole = await Role.findOneBy({ name: 'superadmin' });
+      const superadminRole = await Role.createQueryBuilder('role')
+        .where('role.name = :name', { name: 'superadmin' })
+        .getOne();
       if (!superadminRole) {
         console.warn('No superadmin role found, cannot provision default user');
         return;
@@ -333,15 +361,18 @@ export class AuthService implements OnModuleInit {
   }
 
   async validateUser(userId: string) {
-    return User.findOne({ where: { id: userId }, relations: ['role'] });
+    return User.createQueryBuilder('user')
+      .leftJoinAndSelect('user.role', 'role')
+      .where('user.id = :id', { id: userId })
+      .getOne();
   }
 
   // --- User Management ---
 
   async findAllUsers(): Promise<Partial<User>[]> {
-    const users = await User.find({
-      relations: ['role'],
-    });
+    const users = await User.createQueryBuilder('user')
+      .leftJoinAndSelect('user.role', 'role')
+      .getMany();
     return users.map((u) => ({
       id: u.id,
       username: u.username,
@@ -353,20 +384,24 @@ export class AuthService implements OnModuleInit {
     username: string,
     roleName: string = 'viewer',
   ): Promise<{ token: string; username: string; role: string; expiresAt: Date }> {
-    const existingUser = await User.findOneBy({ username });
+    const existingUser = await User.createQueryBuilder('user')
+      .where('user.username = :username', { username })
+      .getOne();
     if (existingUser) {
       throw new ConflictException(`User "${username}" already exists`);
     }
 
-    const role = await Role.findOneBy({ name: roleName });
+    const role = await Role.createQueryBuilder('role')
+      .where('role.name = :name', { name: roleName })
+      .getOne();
     if (!role) {
       throw new BadRequestException(`Role "${roleName}" not found`);
     }
 
-    const existingInvitation = await Invitation.findOneBy({
-      username,
-      accepted: false,
-    });
+    const existingInvitation = await Invitation.createQueryBuilder('invitation')
+      .where('invitation.username = :username', { username })
+      .andWhere('invitation.accepted = :accepted', { accepted: false })
+      .getOne();
     if (existingInvitation) {
       await existingInvitation.remove();
     }
@@ -388,10 +423,10 @@ export class AuthService implements OnModuleInit {
   async getInvitation(
     token: string,
   ): Promise<{ username: string; role: string; expiresAt: Date }> {
-    const invitation = await Invitation.findOne({
-      where: { token },
-      relations: ['role'],
-    });
+    const invitation = await Invitation.createQueryBuilder('invitation')
+      .leftJoinAndSelect('invitation.role', 'role')
+      .where('invitation.token = :token', { token })
+      .getOne();
 
     if (!invitation) {
       throw new NotFoundException('Invitation not found');
@@ -416,10 +451,10 @@ export class AuthService implements OnModuleInit {
     token: string,
     password: string,
   ): Promise<Partial<User>> {
-    const invitation = await Invitation.findOne({
-      where: { token },
-      relations: ['role'],
-    });
+    const invitation = await Invitation.createQueryBuilder('invitation')
+      .leftJoinAndSelect('invitation.role', 'role')
+      .where('invitation.token = :token', { token })
+      .getOne();
 
     if (!invitation) {
       throw new NotFoundException('Invitation not found');
@@ -433,7 +468,9 @@ export class AuthService implements OnModuleInit {
       throw new BadRequestException('This invitation has expired');
     }
 
-    const existingUser = await User.findOneBy({ username: invitation.username });
+    const existingUser = await User.createQueryBuilder('user')
+      .where('user.username = :username', { username: invitation.username })
+      .getOne();
     if (existingUser) {
       throw new ConflictException(`User "${invitation.username}" already exists`);
     }
@@ -456,15 +493,17 @@ export class AuthService implements OnModuleInit {
     userId: string,
     roleName: string,
   ): Promise<Partial<User>> {
-    const user = await User.findOne({
-      where: { id: userId },
-      relations: ['role'],
-    });
+    const user = await User.createQueryBuilder('user')
+      .leftJoinAndSelect('user.role', 'role')
+      .where('user.id = :id', { id: userId })
+      .getOne();
     if (!user) {
       throw new NotFoundException(`User not found`);
     }
 
-    const role = await Role.findOneBy({ name: roleName });
+    const role = await Role.createQueryBuilder('role')
+      .where('role.name = :name', { name: roleName })
+      .getOne();
     if (!role) {
       throw new BadRequestException(`Role "${roleName}" not found`);
     }
@@ -479,7 +518,9 @@ export class AuthService implements OnModuleInit {
       throw new ForbiddenException('You cannot delete your own account');
     }
 
-    const user = await User.findOneBy({ id: userId });
+    const user = await User.createQueryBuilder('user')
+      .where('user.id = :id', { id: userId })
+      .getOne();
     if (!user) {
       throw new NotFoundException(`User not found`);
     }

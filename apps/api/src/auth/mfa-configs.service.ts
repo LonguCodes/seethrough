@@ -6,17 +6,21 @@ import { UpdateMfaConfigDto } from './dto/update-mfa-config.dto.js';
 @Injectable()
 export class MfaConfigsService {
   async findAll(): Promise<MfaConfig[]> {
-    return MfaConfig.find();
+    return MfaConfig.createQueryBuilder('mfaConfig').getMany();
   }
 
   async findById(id: string): Promise<MfaConfig> {
-    const config = await MfaConfig.findOneBy({ id });
+    const config = await MfaConfig.createQueryBuilder('mfaConfig')
+      .where('mfaConfig.id = :id', { id })
+      .getOne();
     if (!config) throw new NotFoundException('MFA configuration not found');
     return config;
   }
 
   async create(dto: CreateMfaConfigDto): Promise<MfaConfig> {
-    const existingByName = await MfaConfig.findOneBy({ name: dto.name });
+    const existingByName = await MfaConfig.createQueryBuilder('mfaConfig')
+      .where('mfaConfig.name = :name', { name: dto.name })
+      .getOne();
     if (existingByName) {
       throw new ConflictException('An MFA configuration with this name already exists');
     }
@@ -37,6 +41,8 @@ export class MfaConfigsService {
   }
 
   async getActiveConfigs(): Promise<MfaConfig[]> {
-    return MfaConfig.find({ where: { enabled: true } });
+    return MfaConfig.createQueryBuilder('mfaConfig')
+      .where('mfaConfig.enabled = :enabled', { enabled: true })
+      .getMany();
   }
 }
