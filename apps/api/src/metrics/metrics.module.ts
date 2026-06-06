@@ -1,13 +1,14 @@
+import { ConfigToken } from '@longucodes/config';
 import { Module } from '@nestjs/common';
+import { Redis } from 'ioredis';
+
 import { MachineMetric } from './metric.entity.js';
-import { MetricsService } from './metrics.service.js';
 import { MetricsController } from './metrics.controller.js';
 import { MetricsGateway } from './metrics.gateway.js';
-import { ConfigToken } from '@longucodes/config';
-import { AppConfig } from '../config/app.config.js';
-import { Redis } from 'ioredis';
-import { RedisStorageStrategy } from './strategies/redis-storage.strategy.js';
+import { MetricsService } from './metrics.service.js';
+import type { AppConfig } from '../config/app.config.js';
 import { METRICS_STORAGE_TOKEN } from './strategies/metrics-storage.interface.js';
+import { RedisStorageStrategy } from './strategies/redis-storage.strategy.js';
 
 @Module({
   imports: [],

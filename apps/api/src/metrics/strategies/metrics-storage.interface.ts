@@ -1,4 +1,4 @@
-import { MachineMetric } from '../metric.entity.js';
+import type { MachineMetric } from '../metric.entity.js';
 
 export interface IMetricsStorage {
   save(metric: Partial<MachineMetric>): Promise<MachineMetric>;

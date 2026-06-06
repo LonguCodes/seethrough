@@ -1,65 +1,38 @@
 import { Injectable } from '@nestjs/common';
-import { SsoConfig } from '../entities/sso-config.entity.js';
-import { User } from '../entities/user.entity.js';
-import { Role } from '../entities/role.entity.js';
-import { SsoLoginStrategy } from './sso-login-strategy.interface.js';
-import type { SsoIdentity } from '../auth.service.types.js';
+
+import type { LoginStrategy } from './login-strategy.interface.js';
+import type { AuthMethod } from '../entities/auth-method.entity.js';
+import type { User } from '../entities/user.entity.js';
+import type { SamlAuthSettings } from '../types/auth-method-settings.types.js';
+
+export interface SamlIdentity {
+  externalId?: string;
+  email?: string;
+  attributes?: Record<string, unknown>;
+}
 
 @Injectable()
-export class SamlStrategy implements SsoLoginStrategy {
+export class SamlStrategy implements LoginStrategy {
   name = 'saml';
 
-  /**
-   * Given an SSO config and the SAML response attributes,
-   * looks up or creates the user.
-   */
-  async authenticate(
-    config: SsoConfig,
-    identity: SsoIdentity,
-  ): Promise<{ user: User | null; error?: string }> {
-    const { externalId, email, attributes } = identity;
-
-    // Try to find user by a linked identity — for now we use email match
-    // A real implementation would use a separate identity linking table
-    const username = email || externalId || attributes?.username || attributes?.uid || attributes?.name;
-    if (!username) {
-      return { user: null, error: 'No identifiable user attribute received from SAML IdP' };
-    }
-
-    let user = await User.findOneBy({ username });
-
-    if (!user) {
-      if (!config.autoCreateUsers) {
-        return { user: null, error: 'User does not exist and auto-creation is disabled for this SSO configuration' };
-      }
-
-      const defaultRoleName = config.defaultRole || 'viewer';
-      let role = await Role.findOneBy({ name: defaultRoleName });
-      if (!role) {
-        role = await Role.findOneBy({ name: 'viewer' });
-      }
-      if (!role) {
-        return { user: null, error: 'Default role not found' };
-      }
-
-      user = User.create({
-        username,
-        password: '', // SSO users have no local password
-        role,
-      });
-      await user.save();
-    }
-
-    return { user };
+  async authenticate(config: AuthMethod, credentials: Record<string, unknown>): Promise<User | null> {
+    // SAML requires redirect flow, not direct credential auth
+    return null;
   }
 
-  /**
-   * Generate the SAML authorization URL for redirect.
-   */
-  getAuthorizationUrl(config: SsoConfig, state: string): string {
-    // The SAML SP-initiated flow: return the entry point URL with RelayState
-    const entryPoint = config.samlEntryPoint!;
+  getStartUrl(config: AuthMethod, redirectUri: string, state: string): string {
+    const settings = config.settings as unknown as SamlAuthSettings;
+    const entryPoint = settings.entryPoint || '';
     const separator = entryPoint.includes('?') ? '&' : '?';
     return `${entryPoint}${separator}RelayState=${encodeURIComponent(state)}`;
+  }
+
+  async handleCallback(config: AuthMethod, params: Record<string, unknown>): Promise<SamlIdentity> {
+    const p = params as Record<string, string>;
+    return {
+      externalId: p.nameid || p.subject,
+      email: p.email,
+      attributes: params,
+    };
   }
 }

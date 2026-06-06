@@ -1,4 +1,5 @@
 import {Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, BaseEntity, type Relation} from 'typeorm';
+
 import { User } from './user.entity.js';
 
 @Entity('sessions')

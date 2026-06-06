@@ -1,12 +1,15 @@
-import {
-  WebSocketGateway,
-  WebSocketServer,
+import { Logger } from '@nestjs/common';
+import type {
   OnGatewayInit,
   OnGatewayConnection,
-  OnGatewayDisconnect,
+  OnGatewayDisconnect} from '@nestjs/websockets';
+import {
+  WebSocketGateway,
+  WebSocketServer
 } from '@nestjs/websockets';
-import { Logger } from '@nestjs/common';
-import { Server, Socket } from 'socket.io';
+import type { Server, Socket } from 'socket.io';
+
+import type { MachineMetric } from './metric.entity.js';
 
 @WebSocketGateway(3001, {
   cors: {
@@ -17,7 +20,7 @@ export class MetricsGateway implements OnGatewayInit, OnGatewayConnection, OnGat
   @WebSocketServer() server: Server;
   private logger: Logger = new Logger('MetricsGateway');
 
-  broadcastMetric(metric: any) {
+  broadcastMetric(metric: MachineMetric) {
     this.server.emit('metrics-update', metric);
   }
 
@@ -29,7 +32,7 @@ export class MetricsGateway implements OnGatewayInit, OnGatewayConnection, OnGat
     this.logger.log(`Client disconnected: ${client.id}`);
   }
 
-  handleConnection(client: Socket, ...args: any[]) {
+  handleConnection(client: Socket, ...args: unknown[]) {
     this.logger.log(`Client connected: ${client.id}`);
   }
 }

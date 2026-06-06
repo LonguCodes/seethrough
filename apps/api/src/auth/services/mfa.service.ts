@@ -1,0 +1,274 @@
+import crypto from "crypto";
+
+import type { OnModuleInit } from "@nestjs/common";
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from "@nestjs/common";
+
+import { TokenService } from "./token.service.js";
+import type { AuthMethod } from "../entities/auth-method.entity.js";
+import { MfaConfig } from "../entities/mfa-config.entity.js";
+import { UserMfa } from "../entities/user-mfa.entity.js";
+import { User } from "../entities/user.entity.js";
+import type { MfaStrategy } from "../strategies";
+import { PasskeyStrategy, TotpStrategy } from "../strategies";
+
+export interface MfaChallenge {
+  challengeToken: string;
+  mfaMethodId: string;
+  mfaMethodType: string;
+  mfaMethodName: string;
+}
+
+const challengeStore = new Map<
+  string,
+  { userId: string; authMethodId: string; mfaConfigId: string; expiresAt: Date }
+>();
+
+@Injectable()
+export class MfaService implements OnModuleInit {
+  private strategies: Map<string, MfaStrategy> = new Map();
+
+  constructor(
+    private readonly totpStrategy: TotpStrategy,
+    private readonly passkeyStrategy: PasskeyStrategy,
+    private readonly tokenService: TokenService,
+  ) {
+    this.registerStrategy(totpStrategy);
+    this.registerStrategy(passkeyStrategy);
+  }
+
+  onModuleInit() {}
+
+  registerStrategy(strategy: MfaStrategy) {
+    this.strategies.set(strategy.name, strategy);
+  }
+
+  async checkMfaRequirements(authMethod: AuthMethod, userId: string): Promise<MfaChallenge | null> {
+    if (!authMethod.mfaConfig || !authMethod.mfaConfig.id) return null;
+
+    const mfaConfig = authMethod.mfaConfig;
+    if (!mfaConfig.enabled) return null;
+
+    const userEnrollment = await UserMfa.createQueryBuilder("userMfa")
+      .where("userMfa.user.id = :userId", { userId })
+      .andWhere("userMfa.mfaConfig.id = :mfaConfigId", { mfaConfigId: mfaConfig.id })
+      .andWhere("userMfa.enabled = :enabled", { enabled: true })
+      .andWhere("userMfa.verified = :verified", { verified: true })
+      .getOne();
+
+    if (!userEnrollment) return null;
+
+    const challengeToken = crypto.randomBytes(32).toString("hex");
+    challengeStore.set(challengeToken, {
+      userId,
+      authMethodId: authMethod.id,
+      mfaConfigId: mfaConfig.id,
+      expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+    });
+
+    return {
+      challengeToken,
+      mfaMethodId: mfaConfig.id,
+      mfaMethodType: mfaConfig.type,
+      mfaMethodName: mfaConfig.name,
+    };
+  }
+
+  async verifyMfa(
+    challengeToken: string,
+    type: string,
+    code: string,
+  ): Promise<{ accessToken: string; refreshToken: string }> {
+    const challenge = challengeStore.get(challengeToken);
+    if (!challenge || challenge.expiresAt < new Date()) {
+      challengeStore.delete(challengeToken);
+      throw new BadRequestException("Invalid or expired challenge token");
+    }
+
+    const user = await User.createQueryBuilder("user")
+      .where("user.id = :id", { id: challenge.userId })
+      .getOne();
+    if (!user) throw new UnauthorizedException("User not found");
+
+    const mfaConfig = await MfaConfig.createQueryBuilder("mfaConfig")
+      .where("mfaConfig.id = :id", { id: challenge.mfaConfigId })
+      .andWhere("mfaConfig.enabled = :enabled", { enabled: true })
+      .getOne();
+    if (!mfaConfig) throw new BadRequestException("MFA configuration is not available");
+
+    const enrollment = await UserMfa.createQueryBuilder("mfa")
+      .addSelect(["mfa.secret"])
+      .where({ user: { id: challenge.userId }, mfaConfig: { id: mfaConfig.id }, enabled: true })
+      .getOne();
+    if (!enrollment) throw new BadRequestException("No enrollment found for this MFA method");
+
+    const strategy = this.strategies.get(type);
+    if (!strategy) throw new BadRequestException(`MFA strategy '${type}' is not supported`);
+
+    const isValid = await strategy.verify(mfaConfig, enrollment, code);
+    if (!isValid) throw new UnauthorizedException("Invalid MFA code");
+
+    enrollment.lastUsedAt = new Date();
+    await enrollment.save();
+    challengeStore.delete(challengeToken);
+
+    return this.tokenService.generateTokens(user);
+  }
+
+  async enrollUser(userId: string, mfaConfigId: string): Promise<UserMfa> {
+    const mfaConfig = await MfaConfig.createQueryBuilder("mfaConfig")
+      .where("mfaConfig.id = :id", { id: mfaConfigId })
+      .andWhere("mfaConfig.enabled = :enabled", { enabled: true })
+      .getOne();
+    if (!mfaConfig) throw new NotFoundException("MFA configuration not found or disabled");
+
+    const existing = await UserMfa.createQueryBuilder("userMfa")
+      .where("userMfa.user.id = :userId", { userId })
+      .andWhere("userMfa.mfaConfig.id = :mfaConfigId", { mfaConfigId })
+      .getOne();
+    if (existing) return existing;
+
+    const enrollment = UserMfa.create({
+      userId: userId,
+      mfaConfig,
+      type: mfaConfig.type,
+      enabled: true,
+      verified: false,
+    });
+
+    if (mfaConfig.type === "totp") {
+      enrollment.secret = this.totpStrategy.generateSecret();
+    }
+    await enrollment.save();
+
+    return UserMfa.createQueryBuilder("userMfa")
+      .addSelect("userMfa.secret")
+      .where({ id: enrollment.id })
+      .getOne();
+  }
+
+  async verifyEnrollment(userId: string, enrollmentId: string, code: string): Promise<boolean> {
+    const enrollment = await UserMfa.createQueryBuilder("enrollment")
+      .addSelect("enrollment.secret")
+      .where({ id: enrollmentId, user: { id: userId } })
+      .leftJoinAndSelect("enrollment.mfaConfig", "mfaConfig")
+      .getOne();
+
+    if (!enrollment) throw new NotFoundException("Enrollment not found");
+
+    const mfaConfig = enrollment.mfaConfig;
+    if (!mfaConfig) throw new NotFoundException("MFA configuration not found");
+
+    const strategy = this.strategies.get(mfaConfig.type);
+    if (!strategy)
+      throw new BadRequestException(`MFA strategy '${mfaConfig.type}' is not supported`);
+
+    const isValid = await strategy.verify(mfaConfig, enrollment, code);
+    if (!isValid) return false;
+
+    enrollment.verified = true;
+    await enrollment.save();
+    return true;
+  }
+
+  async getUserEnrollments(userId: string): Promise<Array<UserMfa & { secret?: string }>> {
+    return UserMfa.createQueryBuilder("userMfa")
+      .leftJoinAndSelect("userMfa.mfaConfig", "mfaConfig")
+      .where("userMfa.user.id = :userId", { userId })
+      .getMany();
+  }
+
+  async getPasskeyRegistrationOptions(
+    userId: string,
+    username: string,
+    mfaConfigId: string,
+  ): Promise<Record<string, unknown>> {
+    const mfaConfig = await MfaConfig.createQueryBuilder("mfaConfig")
+      .where("mfaConfig.id = :id", { id: mfaConfigId })
+      .andWhere("mfaConfig.enabled = :enabled", { enabled: true })
+      .getOne();
+    if (!mfaConfig) throw new NotFoundException("MFA configuration not found or disabled");
+    return this.passkeyStrategy.generateRegistrationOptions(userId, username, mfaConfig);
+  }
+
+  async verifyPasskeyRegistration(
+    userId: string,
+    mfaConfigId: string,
+    response: unknown,
+  ): Promise<UserMfa> {
+    const credential = await this.passkeyStrategy.verifyRegistration(userId, response);
+    if (!credential) throw new BadRequestException("Passkey registration verification failed");
+
+    const mfaConfig = await MfaConfig.createQueryBuilder("mfaConfig")
+      .where("mfaConfig.id = :id", { id: mfaConfigId })
+      .andWhere("mfaConfig.enabled = :enabled", { enabled: true })
+      .getOne();
+    if (!mfaConfig) throw new NotFoundException("MFA configuration not found or disabled");
+
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+    const enrollment = UserMfa.create({
+      user: { id: userId } as any,
+      mfaConfig,
+      type: "passkey" as any,
+      /* eslint-enable @typescript-eslint/no-explicit-any */
+      enabled: true,
+      verified: true,
+      credentialId: credential.id?.toString(),
+      publicKeyCose: credential.publicKey
+        ? Buffer.from(credential.publicKey).toString("base64")
+        : undefined,
+      destination: credential.transports?.join(","),
+    });
+
+    return enrollment.save();
+  }
+
+  async getPasskeyAuthenticateOptions(challengeToken: string): Promise<Record<string, unknown>> {
+    const challenge = challengeStore.get(challengeToken);
+    if (!challenge || challenge.expiresAt < new Date()) {
+      challengeStore.delete(challengeToken);
+      throw new BadRequestException("Invalid or expired challenge token");
+    }
+
+    const mfaConfig = await MfaConfig.createQueryBuilder("mfaConfig")
+      .where("mfaConfig.id = :id", { id: challenge.mfaConfigId })
+      .andWhere("mfaConfig.enabled = :enabled", { enabled: true })
+      .getOne();
+    if (!mfaConfig) throw new BadRequestException("Passkey MFA is not configured");
+
+    const enrollments = await UserMfa.createQueryBuilder("userMfa")
+      .where("userMfa.user.id = :userId", { userId: challenge.userId })
+      .andWhere("userMfa.mfaConfig.id = :mfaConfigId", { mfaConfigId: mfaConfig.id })
+      .andWhere("userMfa.enabled = :enabled", { enabled: true })
+      .andWhere("userMfa.verified = :verified", { verified: true })
+      .getMany();
+
+    if (enrollments.length === 0) {
+      throw new BadRequestException("No passkey enrollments found");
+    }
+
+    const options = await this.passkeyStrategy.generateAuthenticationOptions(
+      enrollments,
+      mfaConfig,
+      challengeToken,
+    );
+    if (!options) {
+      throw new BadRequestException("Failed to generate passkey authentication options");
+    }
+
+    return options;
+  }
+
+  async removeEnrollment(userId: string, enrollmentId: string): Promise<void> {
+    const enrollment = await UserMfa.createQueryBuilder("userMfa")
+      .where("userMfa.id = :id", { id: enrollmentId })
+      .andWhere("userMfa.user.id = :userId", { userId })
+      .getOne();
+    if (!enrollment) throw new NotFoundException("Enrollment not found");
+    await enrollment.remove();
+  }
+}

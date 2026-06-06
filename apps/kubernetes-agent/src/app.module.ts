@@ -1,5 +1,7 @@
-import {DynamicModule, Module} from "@nestjs/common";
 import {ConfigModule} from "@longucodes/config";
+import type {DynamicModule} from "@nestjs/common";
+import { Module} from "@nestjs/common";
+
 import {ConfigSchema} from "./config/app.config.js";
 import {KubernetesModule} from "./kubernetes/kubernetes.module.js";
 

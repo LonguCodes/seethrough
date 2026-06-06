@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "declaration": false,
+    "emitDeclarationOnly": false,
+    "rootDir": "./src"
+  },
+  "include": ["src/migrations/**/*.ts"]
+}

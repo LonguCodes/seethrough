@@ -1,5 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsEnum, IsOptional, IsString } from 'class-validator';
+
 import { AlertStatus } from '../alert.enums.js';
 
 export class GetAlertsQueryDto {

@@ -1,13 +1,16 @@
 import { Injectable } from '@nestjs/common';
-import { IntegrationChannel, IntegrationMessagePayload } from '../integration-channel.interface.js';
+
+import type { IntegrationChannel, IntegrationMessagePayload } from '../integration-channel.interface.js';
 
 @Injectable()
 export class SlackChannel implements IntegrationChannel {
   readonly type = 'slack';
   readonly label = 'Slack';
 
+  webhookUrl?: string;
+
   async send(payload: IntegrationMessagePayload): Promise<void> {
-    const webhookUrl = (this as any).webhookUrl as string;
+    const webhookUrl = this.webhookUrl;
     if (!webhookUrl) return;
 
     const color = payload.severity === 'critical' ? '#ff0000'
@@ -72,6 +75,6 @@ export class SlackChannel implements IntegrationChannel {
  */
 export function createSlackChannel(webhookUrl: string): SlackChannel {
   const channel = new SlackChannel();
-  (channel as any).webhookUrl = webhookUrl;
+  channel.webhookUrl = webhookUrl;
   return channel;
 }

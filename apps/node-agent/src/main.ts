@@ -1,6 +1,7 @@
+import type { LogLevel } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
+
 import { AppModule } from "./app.module.js";
-import { LogLevel } from "@nestjs/common";
 
 async function bootstrap() {
   const allLevels: LogLevel[] = ['fatal', 'error', 'warn', 'log', 'debug', 'verbose'];

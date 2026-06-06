@@ -1,5 +1,8 @@
-import ky from 'ky';
+import ky, { HTTPError } from 'ky';
+
 import { getAccessToken, getRefreshToken, refreshAccessToken, clearTokens } from './auth';
+
+export { HTTPError } from 'ky';
 
 let isRefreshing = false;
 let refreshHelpers: Array<() => void> = [];

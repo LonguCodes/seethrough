@@ -1,7 +1,7 @@
-import { AlertScope, TargetType } from '../alert.enums.js';
-import { AlertTriggerData } from './scope-data.types.js';
+import type { AlertScope, TargetType } from '../alert.enums.js';
+import type { AlertTriggerData } from './scope-data.types.js';
 
-export interface TriggerStrategy<T extends AlertTriggerData = AlertTriggerData, P = any> {
+export interface TriggerStrategy<T extends AlertTriggerData = AlertTriggerData, P = unknown> {
   /**
    * The unique identifier for this strategy type (matches AlertTrigger.type)
    */

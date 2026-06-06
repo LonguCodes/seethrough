@@ -1,11 +1,12 @@
-import { Injectable, OnModuleInit, Inject, Logger } from '@nestjs/common';
-import { HttpService } from '@nestjs/axios';
-import { ConfigToken } from '@longucodes/config';
-import type { AppConfig } from '../config/app.config.js';
-import { JwtService } from '@nestjs/jwt';
-import { interval } from 'rxjs';
-import { firstValueFrom } from 'rxjs';
-import { KubernetesService } from './kubernetes.service.js';
+import { ConfigToken } from "@longucodes/config";
+import { HttpService } from "@nestjs/axios";
+import { Injectable, Inject, Logger } from "@nestjs/common";
+import type { OnModuleInit } from "@nestjs/common";
+import { JwtService } from "@nestjs/jwt";
+import { interval, firstValueFrom } from "rxjs";
+
+import { KubernetesService } from "./kubernetes.service.js";
+import type { AppConfig } from "../config/app.config.js";
 
 @Injectable()
 export class KubernetesReporterService implements OnModuleInit {
@@ -16,10 +17,10 @@ export class KubernetesReporterService implements OnModuleInit {
     @Inject(ConfigToken) private readonly config: AppConfig,
     private readonly jwtService: JwtService,
     private readonly kubernetesService: KubernetesService,
-  ) { }
+  ) {}
 
   onModuleInit() {
-    this.logger.log('Kubernetes Reporter Service started');
+    this.logger.log("Kubernetes Reporter Service started");
     // Collect and report cluster info based on configured interval
     interval(this.config.reportInterval).subscribe(() => this.collectAndReport());
     // Initial collection
@@ -30,16 +31,16 @@ export class KubernetesReporterService implements OnModuleInit {
     try {
       const clusterInfo = await this.kubernetesService.getClusterInfo();
       await this.reportClusterInfo(clusterInfo);
-      this.logger.debug('Cluster info reported successfully');
+      this.logger.debug("Cluster info reported successfully");
     } catch (error) {
-      this.logger.error('Failed to collect or report cluster info');
-      this.logger.debug(error.stack)
+      this.logger.error("Failed to collect or report cluster info");
+      this.logger.debug(error.stack);
     }
   }
 
-  private async reportClusterInfo(data: any) {
+  private async reportClusterInfo(data: unknown) {
     const token = this.jwtService.sign({
-      role: 'kubernetes-agent',
+      role: "kubernetes-agent",
     });
 
     const url = `${this.config.apiUrl}/api/cluster-info`;

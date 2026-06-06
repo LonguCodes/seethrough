@@ -1,0 +1,45 @@
+import { Controller, Get, Post, Patch, Delete, Body, Param, UseGuards } from '@nestjs/common';
+
+import { RequirePermissions } from '../decorators/permissions.decorator.js';
+import  { CreateMfaConfigDto } from '../dto/create-mfa-config.dto.js';
+import  { UpdateMfaConfigDto } from '../dto/update-mfa-config.dto.js';
+import { PermissionsGuard } from '../guards/permissions.guard.js';
+import { Permissions } from '@repo/core';
+import { MfaConfigsService } from "../services";
+
+@Controller('mfa-configs')
+@UseGuards(PermissionsGuard)
+export class MfaConfigsController {
+  constructor(private readonly mfaConfigsService: MfaConfigsService) {}
+
+  @Get()
+  @RequirePermissions(Permissions.MFA_VIEW)
+  async getAll() {
+    return this.mfaConfigsService.findAll();
+  }
+
+  @Get(':id')
+  @RequirePermissions(Permissions.MFA_VIEW)
+  async getById(@Param('id') id: string) {
+    return this.mfaConfigsService.findById(id);
+  }
+
+  @Post()
+  @RequirePermissions(Permissions.MFA_MANAGE)
+  async create(@Body() dto: CreateMfaConfigDto) {
+    return this.mfaConfigsService.create(dto);
+  }
+
+  @Patch(':id')
+  @RequirePermissions(Permissions.MFA_MANAGE)
+  async update(@Param('id') id: string, @Body() dto: UpdateMfaConfigDto) {
+    return this.mfaConfigsService.update(id, dto);
+  }
+
+  @Delete(':id')
+  @RequirePermissions(Permissions.MFA_MANAGE)
+  async delete(@Param('id') id: string) {
+    await this.mfaConfigsService.delete(id);
+    return { success: true };
+  }
+}

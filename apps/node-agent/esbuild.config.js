@@ -1,6 +1,7 @@
-const { esbuildDecorators } = require('esbuild-decorators');
 const { TsconfigPathsPlugin } = require('@esbuild-plugins/tsconfig-paths');
+const { esbuildDecorators } = require('esbuild-decorators');
 const { fixExtensionsPlugin } = require('esbuild-fix-imports-plugin');
+
 module.exports = {
   plugins: [
     esbuildDecorators({}),

@@ -1,7 +1,12 @@
-import { User } from '../entities/user.entity.js';
-import type { AppConfig } from '../../config/app.config.js';
+import type { AuthMethod } from '../entities/auth-method.entity.js';
+import type { User } from '../entities/user.entity.js';
+
+export interface SSOLoginStrategy extends LoginStrategy {
+  getStartUrl?(config: AuthMethod, redirectUri: string, state: string): string;
+  handleCallback?(config: AuthMethod, params: Record<string, unknown>): Promise<{ email?: string; externalId?: string; attributes?: Record<string, unknown> }>;
+}
 
 export interface LoginStrategy {
   name: string;
-  authenticate(credentials: Record<string, any>): Promise<User | null>;
+  authenticate(config: AuthMethod, credentials: Record<string, unknown>): Promise<User | null>;
 }

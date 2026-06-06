@@ -1,7 +1,8 @@
+import { ConfigToken } from '@longucodes/config';
 import { Injectable, Inject } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
-import { ConfigToken } from '@longucodes/config';
+
 import type { AppConfig } from '../config/app.config.js';
 
 @Injectable()
@@ -14,7 +15,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  async validate(payload: any) {
+  async validate(payload: Record<string, unknown>) {
     return { machineId: payload.machineId, role: payload.role };
   }
 }

@@ -1,9 +1,11 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
-import { getAccessToken } from './auth';
-import type { AuthUser } from './permissions';
+
 import {jwtDecode} from "jwt-decode";
+
+import { getAccessToken, clearTokens } from './auth';
+import type { AuthUser } from '@repo/core';
 
 function parseUserFromToken(token: string | undefined): AuthUser | null {
   if (!token) return null;
@@ -21,12 +23,14 @@ interface AuthContextValue {
   user: AuthUser | null;
   loading: boolean;
   refresh: () => void;
+  logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextValue>({
   user: null,
   loading: true,
   refresh: () => {},
+  logout: () => {},
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -34,9 +38,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(() => {
-    console.log('dadas')
     const token = getAccessToken();
-    console.log(token)
     const parsed = parseUserFromToken(token);
     setUser(parsed);
   }, []);
@@ -46,8 +48,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(false);
   }, [refresh]);
 
+  const logout = useCallback(() => {
+    clearTokens();
+    setUser(null);
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, loading, refresh }}>
+    <AuthContext.Provider value={{ user, loading, refresh, logout }}>
       {children}
     </AuthContext.Provider>
   );

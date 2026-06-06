@@ -1,10 +1,12 @@
 {
   "name": "project-template",
   "private": true,
+  "type": "module",
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
     "lint": "turbo run lint",
+    "lint:fix": "turbo run lint -- --fix",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "check-types": "turbo run check-types",
     "build:api": "turbo run build --filter=./apps/api",
@@ -15,7 +17,7 @@
     "minikube:redeploy": "helm upgrade seethrough ./helm/seethrough --set 'config.logLevel'=debug --set image.api.repository=local/seethrough --set image.web.repository=local/seethrough --set image.nodeAgent.repository=local/seethrough --set image.kubernetesAgent.repository=local/seethrough",
     "minikube:reload": "yarn minikube:build && kubectl rollout restart deployment/api deployment/web daemonset/node-agent deployment/kubernetes-agent",
     "minikube:configure": "minikube addons enable volumesnapshots && minikube addons enable csi-hostpath-driver && minikube addons disable storage-provisioner && minikube addons disable default-storageclass && kubectl patch storageclass csi-hostpath-sc -p '{\"metadata\": {\"annotations\":{\"storageclass.kubernetes.io/is-default-class\":\"true\"}}}'",
-    "minikube:recreate": "minikube delete || true && minikube start && yarn minikube:configure"
+    "minikube:recreate": "minikube delete --purge || true && minikube start && yarn minikube:configure"
   },
   "devDependencies": {
     "prettier": "^3.6.2",

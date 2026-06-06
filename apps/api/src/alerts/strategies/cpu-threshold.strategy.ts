@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { TriggerStrategy } from './trigger-strategy.interface.js';
+
+import type { TriggerStrategy } from './trigger-strategy.interface.js';
 import { AlertScope, TargetType } from '../alert.enums.js';
-import { NodeData } from './scope-data.types.js';
+import type { NodeData } from './scope-data.types.js';
 
 interface CpuParameters {
   threshold: number;

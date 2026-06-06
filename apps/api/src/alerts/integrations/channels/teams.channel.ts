@@ -1,13 +1,16 @@
 import { Injectable } from '@nestjs/common';
-import { IntegrationChannel, IntegrationMessagePayload } from '../integration-channel.interface.js';
+
+import type { IntegrationChannel, IntegrationMessagePayload } from '../integration-channel.interface.js';
 
 @Injectable()
 export class TeamsChannel implements IntegrationChannel {
   readonly type = 'teams';
   readonly label = 'Microsoft Teams';
 
+  webhookUrl?: string;
+
   async send(payload: IntegrationMessagePayload): Promise<void> {
-    const webhookUrl = (this as any).webhookUrl as string;
+    const webhookUrl = this.webhookUrl;
     if (!webhookUrl) return;
 
     const themeColor = payload.severity === 'critical' ? 'ff0000'
@@ -48,6 +51,6 @@ export class TeamsChannel implements IntegrationChannel {
 
 export function createTeamsChannel(webhookUrl: string): TeamsChannel {
   const channel = new TeamsChannel();
-  (channel as any).webhookUrl = webhookUrl;
+  channel.webhookUrl = webhookUrl;
   return channel;
 }

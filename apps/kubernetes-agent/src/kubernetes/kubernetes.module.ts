@@ -1,11 +1,12 @@
-import { Module } from '@nestjs/common';
-import { HttpModule } from '@nestjs/axios';
-import { KubernetesService } from './kubernetes.service.js';
-import { KubernetesReporterService } from './kubernetes-reporter.service.js';
-import { LogStreamerService } from './log-streamer.service.js';
-import { JwtModule } from '@nestjs/jwt';
 import { ConfigToken } from '@longucodes/config';
-import { AppConfig } from '../config/app.config.js';
+import { HttpModule } from '@nestjs/axios';
+import { Module } from '@nestjs/common';
+import { JwtModule } from '@nestjs/jwt';
+
+import { KubernetesReporterService } from './kubernetes-reporter.service.js';
+import { KubernetesService } from './kubernetes.service.js';
+import { LogStreamerService } from './log-streamer.service.js';
+import type { AppConfig } from '../config/app.config.js';
 
 @Module({
   imports: [

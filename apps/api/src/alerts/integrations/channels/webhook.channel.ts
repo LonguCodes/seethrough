@@ -1,13 +1,21 @@
 import { Injectable } from '@nestjs/common';
-import { IntegrationChannel, IntegrationMessagePayload } from '../integration-channel.interface.js';
+
+import type { IntegrationChannel, IntegrationMessagePayload } from '../integration-channel.interface.js';
+
+export interface WebhookConfig {
+  url: string;
+  headers?: Record<string, string>;
+}
 
 @Injectable()
 export class WebhookChannel implements IntegrationChannel {
   readonly type = 'webhook';
   readonly label = 'Webhook';
 
+  webhookConfig?: WebhookConfig;
+
   async send(payload: IntegrationMessagePayload): Promise<void> {
-    const webhookConfig = (this as any).webhookConfig as { url: string; headers?: Record<string, string> } | undefined;
+    const webhookConfig = this.webhookConfig;
     if (!webhookConfig?.url) return;
 
     const body = {
@@ -40,8 +48,8 @@ export class WebhookChannel implements IntegrationChannel {
   }
 }
 
-export function createWebhookChannel(config: { url: string; headers?: Record<string, string> }): WebhookChannel {
+export function createWebhookChannel(config: WebhookConfig): WebhookChannel {
   const channel = new WebhookChannel();
-  (channel as any).webhookConfig = config;
+  channel.webhookConfig = config;
   return channel;
 }

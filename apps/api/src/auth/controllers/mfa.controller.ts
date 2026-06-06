@@ -1,0 +1,85 @@
+import { Body, Controller, Delete, Get, Param, Post, Request, UseGuards } from "@nestjs/common";
+import type { Request as ExpressRequest } from "express";
+
+import { Public } from "../decorators/public.decorator.js";
+import { VerifyMfaDto } from "../dto/verify-mfa.dto.js";
+import type { AuthenticatedUser } from "../guards/jwt-auth.guard.js";
+import { JwtAuthGuard } from "../guards/jwt-auth.guard.js";
+import { MfaService } from "../services";
+
+type AuthenticatedRequest = ExpressRequest & { user: AuthenticatedUser };
+
+
+@Controller('mfa')
+export class MfaController {
+  constructor(private readonly mfaService: MfaService) {}
+
+  @Public()
+  @Post('verify')
+  async verify(@Body() dto: VerifyMfaDto) {
+    return this.mfaService.verifyMfa(dto.challengeToken, dto.type, dto.code);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('enrollments')
+  async getEnrollments(@Request() req: AuthenticatedRequest) {
+    return this.mfaService.getUserEnrollments(req.user.id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('enroll/:mfaConfigId')
+  async enroll(@Param('mfaConfigId') mfaConfigId: string, @Request() req: AuthenticatedRequest) {
+    return this.mfaService.enrollUser(req.user.id, mfaConfigId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('enroll/:enrollmentId/verify')
+  async verifyEnrollment(
+    @Param('enrollmentId') enrollmentId: string,
+    @Body('code') code: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
+    const result = await this.mfaService.verifyEnrollment(req.user.id, enrollmentId, code);
+    return { success: result };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete('enrollments/:enrollmentId')
+  async removeEnrollment(@Param('enrollmentId') enrollmentId: string, @Request() req: AuthenticatedRequest) {
+    await this.mfaService.removeEnrollment(req.user.id, enrollmentId);
+    return { success: true };
+  }
+
+  // --- Passkey-specific endpoints ---
+
+  @UseGuards(JwtAuthGuard)
+  @Post('passkey/register-options')
+  async passkeyRegisterOptions(@Body('mfaConfigId') mfaConfigId: string, @Request() req: AuthenticatedRequest) {
+
+    return await this.mfaService.getPasskeyRegistrationOptions(
+      req.user.id,
+      req.user.username,
+      mfaConfigId,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('passkey/register-verify')
+  async passkeyRegisterVerify(
+    @Body('mfaConfigId') mfaConfigId: string,
+    @Body('response') response: unknown,
+    @Request() req: AuthenticatedRequest,
+  ) {
+    const enrollment = await this.mfaService.verifyPasskeyRegistration(req.user.id, mfaConfigId, response);
+    return { success: true, enrollmentId: enrollment.id };
+  }
+
+  // --- Passkey login authentication ---
+
+  @Public()
+  @Post('passkey/authenticate-options')
+  async passkeyAuthenticateOptions(@Body('challengeToken') challengeToken: string) {
+    const options = await this.mfaService.getPasskeyAuthenticateOptions(challengeToken);
+    return options;
+  }
+}

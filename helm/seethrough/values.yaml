@@ -27,7 +27,7 @@ service:
     port: 3000
     websocketPort: 3001
   web:
-    type: LoadBalancer
+    type: ClusterIP
     port: 80
     targetPort: 80
 

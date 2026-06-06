@@ -7,6 +7,7 @@ import {
   BaseEntity,
   type Relation,
 } from 'typeorm';
+
 import { Role } from './role.entity.js';
 
 @Entity('invitations')

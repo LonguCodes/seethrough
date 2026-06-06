@@ -1,13 +1,15 @@
-import { Injectable, OnModuleInit, Inject, Logger } from '@nestjs/common';
-import { HttpService } from '@nestjs/axios';
-import { ConfigToken } from '@longucodes/config';
-import type { AppConfig } from '../config/app.config.js';
-import { JwtService } from '@nestjs/jwt';
-import * as si from 'systeminformation';
-import { interval } from 'rxjs';
-import { firstValueFrom } from 'rxjs';
-import * as fileSystem from 'fs/promises'
-import fastFolderSize from 'fast-folder-size/sync.js';
+import * as fileSystem from "fs/promises";
+
+import { ConfigToken } from "@longucodes/config";
+import { HttpService } from "@nestjs/axios";
+import type { OnModuleInit } from "@nestjs/common";
+import { Injectable, Inject, Logger } from "@nestjs/common";
+import { JwtService } from "@nestjs/jwt";
+import fastFolderSize from "fast-folder-size/sync.js";
+import { interval, firstValueFrom } from "rxjs";
+import * as si from "systeminformation";
+
+import type { AppConfig } from "../config/app.config.js";
 
 @Injectable()
 export class MetricsCollectorService implements OnModuleInit {
@@ -17,10 +19,12 @@ export class MetricsCollectorService implements OnModuleInit {
     private readonly httpService: HttpService,
     @Inject(ConfigToken) private readonly config: AppConfig,
     private readonly jwtService: JwtService,
-  ) { }
+  ) {}
 
   onModuleInit() {
-    this.logger.log(`Metrics Collector Service started with interval: ${this.config.reportInterval}ms`);
+    this.logger.log(
+      `Metrics Collector Service started with interval: ${this.config.reportInterval}ms`,
+    );
     // Collect and report metrics
     interval(this.config.reportInterval).subscribe(() => this.collectAndReport());
   }
@@ -29,20 +33,15 @@ export class MetricsCollectorService implements OnModuleInit {
     try {
       const metrics = await this.collectMetrics();
       await this.reportMetrics(metrics);
-      this.logger.debug('Metrics reported successfully');
+      this.logger.debug("Metrics reported successfully");
     } catch (error) {
-      this.logger.error('Failed to collect or report metrics');
-      this.logger.debug(error.stack)
+      this.logger.error("Failed to collect or report metrics");
+      this.logger.debug(error.stack);
     }
   }
 
   private async collectMetrics() {
-    const [cpu, mem, fs] = await Promise.all([
-      si.currentLoad(),
-      si.mem(),
-      si.fsSize(),
-    ]);
-
+    const [cpu, mem, fs] = await Promise.all([si.currentLoad(), si.mem(), si.fsSize()]);
 
     this.logger.debug(`Found ${fs.length} filesystems`);
 
@@ -62,7 +61,7 @@ export class MetricsCollectorService implements OnModuleInit {
 
   private async collectPvcMetrics() {
     const pvcUsage = [];
-    const podsPath = '/var/lib/kubelet/pods';
+    const podsPath = "/var/lib/kubelet/pods";
 
     try {
       const podUids = await fileSystem.readdir(podsPath);
@@ -74,10 +73,10 @@ export class MetricsCollectorService implements OnModuleInit {
           for (const plugin of plugins) {
             // Skip system/projected volumes
             if (
-              plugin.includes('projected') ||
-              plugin.includes('secret') ||
-              plugin.includes('configmap') ||
-              plugin.includes('kube-api-access')
+              plugin.includes("projected") ||
+              plugin.includes("secret") ||
+              plugin.includes("configmap") ||
+              plugin.includes("kube-api-access")
             )
               continue;
 
@@ -90,7 +89,7 @@ export class MetricsCollectorService implements OnModuleInit {
               let targetPath = volumePath;
               try {
                 const subDirs = await fileSystem.readdir(volumePath);
-                if (subDirs.includes('mount')) {
+                if (subDirs.includes("mount")) {
                   targetPath = `${volumePath}/mount`;
                 }
               } catch (e) {
@@ -115,17 +114,17 @@ export class MetricsCollectorService implements OnModuleInit {
         }
       }
     } catch (e) {
-      this.logger.error('Failed to scan /var/lib/kubelet/pods');
+      this.logger.error("Failed to scan /var/lib/kubelet/pods");
       this.logger.debug(e.message);
     }
     return pvcUsage;
   }
 
-  private async reportMetrics(metrics: any) {
+  private async reportMetrics(metrics: unknown) {
     this.logger.debug(`Reporting metrics: ${JSON.stringify(metrics)}`);
     const token = this.jwtService.sign({
       machineId: this.config.machineId,
-      role: 'agent',
+      role: "agent",
     });
 
     const url = `${this.config.apiUrl}/api/metrics`;

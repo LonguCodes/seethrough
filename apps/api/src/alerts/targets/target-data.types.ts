@@ -114,7 +114,7 @@ export interface DaemonSetInfoData {
 // === Cluster Info Type ===
 
 export interface ClusterInfoData {
-  nodes: any[];
+  nodes: Record<string, unknown>[];
   namespaces: string[];
   pvcs: PvcInfoData[];
   pods: PodInfoData[];
@@ -126,7 +126,7 @@ export interface ClusterInfoData {
 
 // === Target Item (what getTargets returns) ===
 
-export interface TargetItem<T = any> {
+export interface TargetItem<T = unknown> {
   id: string;
   data: T;
 }

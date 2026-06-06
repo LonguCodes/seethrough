@@ -1,5 +1,5 @@
-import { Alert } from '../alert.entity.js';
 import { AlertTrigger } from '../alert-trigger.entity.js';
+import { Alert } from '../alert.entity.js';
 
 export interface IntegrationMessagePayload {
   title: string;

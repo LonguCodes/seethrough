@@ -1,8 +1,9 @@
 'use client';
 
 import { X, Info, AlertTriangle, Terminal, Clock, Globe, Cpu, Tag } from 'lucide-react';
-import LogViewer from './LogViewer';
+
 import AlertsList from './components/AlertsList';
+import LogViewer from './LogViewer';
 
 interface Pod {
   name: string;

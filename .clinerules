@@ -25,3 +25,109 @@ sessions: Session[];
 ```
 
 This ensures proper type safety when working with TypeORM's lazy/loaded relations.
+
+## ActiveRecord Pattern
+
+Always use TypeORM's ActiveRecord pattern. All entities extend `BaseEntity`, giving them static methods for database operations. Use these directly on entity classes instead of injecting repositories via `@InjectRepository`.
+
+The root `TypeOrmModule.forRootAsync` already has `autoLoadEntities: true`, so `TypeOrmModule.forFeature()` is unnecessary and should NOT be used.
+
+### QueryBuilder Requirement
+
+ALL database queries MUST use the `createQueryBuilder` method. Do NOT use `find`, `findOne`, `findOneBy`, `findBy`, `findAndCount`, `findByOrFail`, `count`, or `exist` static methods. Always build queries using `createQueryBuilder` with explicit parameterized conditions.
+
+```typescript
+// CORRECT — always use createQueryBuilder:
+const user = await User.createQueryBuilder('user')
+  .where('user.id = :id', { id: userId })
+  .getOne();
+
+const users = await User.createQueryBuilder('user')
+  .leftJoinAndSelect('user.role', 'role')
+  .getMany();
+
+const count = await User.createQueryBuilder('user')
+  .where('user.active = :active', { active: true })
+  .getCount();
+
+const mfaConfigs = await MfaConfig.createQueryBuilder('mfaConfig')
+  .where('mfaConfig.enabled = :enabled', { enabled: true })
+  .getMany();
+
+// For selecting hidden columns (e.g. secrets):
+const result = await UserMfa.createQueryBuilder('mfa')
+  .addSelect(['mfa.secret'])
+  .where('mfa.id = :id', { id: enrollmentId })
+  .getOne();
+```
+
+```typescript
+// WRONG — do NOT use find/findOne/findBy/count methods:
+const user = await User.findOneBy({ id: userId });
+const users = await User.find({ relations: ['role'] });
+const count = await User.count({ where: { active: true } });
+const configs = await MfaConfig.find({ where: { enabled: true } });
+const trigger = await AlertTrigger.findBy({ enabled: true });
+```
+
+```typescript
+// WRONG — do NOT inject repositories:
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+
+constructor(
+  @InjectRepository(User)
+  private readonly userRepo: Repository<User>,
+) {}
+
+// then later:
+this.userRepo.findOneBy({ id: userId });
+this.userRepo.create({ ... });
+```
+
+```typescript
+// WRONG — do NOT use TypeOrmModule.forFeature():
+import { TypeOrmModule } from '@nestjs/typeorm';
+
+@Module({
+  imports: [
+    TypeOrmModule.forFeature([User, Session, Role]),
+  ],
+})
+```
+
+This keeps queries consistent, explicit, and avoids ORM magic. Using `createQueryBuilder` ensures all query conditions are visible and parameterized.
+
+## No `any` Type
+
+The `any` type is strictly forbidden throughout the codebase. Use `unknown` when the type is truly dynamic, or define proper interfaces/types for known shapes.
+
+```typescript
+// CORRECT - use unknown with type narrowing
+const data: unknown = JSON.parse(raw);
+if (typeof data === 'object' && data !== null && 'name' in data) {
+  // narrow to specific shape
+}
+
+// CORRECT - use Record when keys are dynamic
+settings: Record<string, unknown>;
+
+// CORRECT - define interfaces for known shapes
+interface TokenResponse {
+  access_token: string;
+  token_type: string;
+}
+const tokens = await response.json() as TokenResponse;
+
+// CORRECT - use unknown for error handling
+catch (err: unknown) {
+  const message = err instanceof Error ? err.message : 'Unknown error';
+}
+```
+
+```typescript
+// WRONG - never use any
+settings: Record<string, any>;
+const data: any = await api.get('users').json();
+catch (err: any) { }
+```

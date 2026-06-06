@@ -1,4 +1,5 @@
 import { IsString, IsEnum, IsOptional, IsBoolean, IsNumber, IsObject, IsArray, Min } from 'class-validator';
+
 import { AlertScope } from '../alert.enums.js';
 
 export class CreateTriggerDto {
@@ -22,7 +23,7 @@ export class CreateTriggerDto {
   conditionType: string;
 
   @IsObject()
-  conditionValue: any;
+  conditionValue: unknown;
 
   @IsOptional()
   @IsString()
@@ -84,7 +85,7 @@ export class UpdateTriggerDto {
 
   @IsOptional()
   @IsObject()
-  conditionValue?: any;
+  conditionValue?: unknown;
 
   @IsOptional()
   @IsString()

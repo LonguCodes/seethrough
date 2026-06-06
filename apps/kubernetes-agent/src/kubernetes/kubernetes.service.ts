@@ -1,5 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
 import * as k8s from '@kubernetes/client-node';
+import { Injectable, Logger } from '@nestjs/common';
 
 @Injectable()
 export class KubernetesService {

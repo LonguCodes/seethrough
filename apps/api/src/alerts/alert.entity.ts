@@ -1,4 +1,5 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn, BaseEntity, type Relation } from 'typeorm';
+
 import { AlertTrigger } from './alert-trigger.entity.js';
 import { AlertSeverity, AlertStatus } from './alert.enums.js';
 
@@ -23,10 +24,9 @@ export class Alert extends BaseEntity {
   status: AlertStatus;
 
   @Column('jsonb', { nullable: true })
-  details: any;
+  details: unknown;
 
   @ManyToOne(() => AlertTrigger, { nullable: true, onDelete: 'SET NULL' })
-  @JoinColumn({ name: 'triggerId' })
   trigger: Relation<AlertTrigger>;
 
   @Column({ nullable: true })

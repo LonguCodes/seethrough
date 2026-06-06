@@ -1,11 +1,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { shake } from "radash";
+
 import { AlertTrigger } from './alert-trigger.entity.js';
 import { Alert } from './alert.entity.js';
 import { AlertStatus } from './alert.enums.js';
-import { CreateTriggerDto, UpdateTriggerDto } from './dto/create-trigger.dto.js';
-import { TargetRegistry } from './targets/target.registry.js';
+import  { CreateTriggerDto, UpdateTriggerDto } from './dto/create-trigger.dto.js';
 import { IntegrationService } from './integrations/integration.service.js';
-import { shake } from "radash";
+import { TargetRegistry } from './targets/target.registry.js';
 
 @Injectable()
 export class AlertsService {
@@ -42,7 +43,9 @@ export class AlertsService {
   }
 
   async updateTrigger(id: string, dto: UpdateTriggerDto) {
-    const trigger = await AlertTrigger.findOneBy({ id });
+    const trigger = await AlertTrigger.createQueryBuilder('trigger')
+      .where('trigger.id = :id', { id })
+      .getOne();
     if (!trigger) {
       throw new NotFoundException('Trigger not found');
     }
@@ -59,7 +62,9 @@ export class AlertsService {
   }
 
   async findOneTrigger(id: string) {
-    const trigger = await AlertTrigger.findOneBy({ id });
+    const trigger = await AlertTrigger.createQueryBuilder('trigger')
+      .where('trigger.id = :id', { id })
+      .getOne();
     if (!trigger) return null;
 
     const integrationIds = await this.integrationService.getTriggerIntegrationIds(id);
@@ -67,7 +72,7 @@ export class AlertsService {
   }
 
   async findAllTriggers() {
-    const triggers = await AlertTrigger.find();
+    const triggers = await AlertTrigger.createQueryBuilder('trigger').getMany();
     return Promise.all(
       triggers.map(async (t) => ({
         ...t,
@@ -81,13 +86,15 @@ export class AlertsService {
   }
 
   findEnabledTriggers() {
-    return AlertTrigger.findBy({ enabled: true });
+    return AlertTrigger.createQueryBuilder('trigger')
+      .where('trigger.enabled = :enabled', { enabled: true })
+      .getMany();
   }
 
   // Alert Instance Methods
   async createAlert(data: Partial<Alert>) {
     const alert = Alert.create(data);
-    return alert.save();
+    return alert.save() as Promise<Alert>;
   }
 
   findAllAlerts(status?: AlertStatus, target?: string) {
@@ -115,10 +122,10 @@ export class AlertsService {
   }
 
   async findActiveAlerts(): Promise<Alert[]> {
-    return Alert.find({
-      where: { status: AlertStatus.ACTIVE },
-      relations: ['trigger'],
-    });
+    return Alert.createQueryBuilder('alert')
+      .leftJoinAndSelect('alert.trigger', 'trigger')
+      .where('alert.status = :status', { status: AlertStatus.ACTIVE })
+      .getMany();
   }
 
   async resolveAlert(id: string, autoResolved = false) {
@@ -127,7 +134,9 @@ export class AlertsService {
       resolvedAt: new Date(),
       autoResolved,
     });
-    return Alert.findOneBy({ id });
+    return Alert.createQueryBuilder('alert')
+      .where('alert.id = :id', { id })
+      .getOne();
   }
 
   async updateLastMatchedAt(id: string) {

@@ -1,25 +1,26 @@
 'use client';
 
+import { LayoutDashboard, Layers, Settings, Activity, Box, Cpu, HardDrive, Users, Shield, Key, User, LogOut } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Layers, Settings, Activity, Server, Box, Cpu, HardDrive, Users, Shield } from 'lucide-react';
+
+import { hasPermission, Permissions, NAV_PERMISSION_MAP } from '@repo/core';
 import { useAuth } from '../../lib/use-auth';
-import { hasPermission, PERMISSIONS, NAV_PERMISSION_MAP } from '../../lib/permissions';
 
 const ALL_MENU_ITEMS = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/' },
   { icon: Layers, label: 'Cluster View', href: '/cluster' },
   { icon: HardDrive, label: 'Volumes', href: '/volumes' },
   { icon: Activity, label: 'Alert Rules', href: '/alerts' },
+  { icon: User, label: 'My Profile', href: '/profile' },
   { icon: Users, label: 'Users', href: '/users' },
-  { icon: Shield, label: 'SSO', href: '/sso' },
+  { icon: Shield, label: 'Auth Methods', href: '/auth-methods' },
+  { icon: Key, label: 'MFA', href: '/mfa' },
 ];
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const { user } = useAuth();
-
-  console.log(user)
+  const { user, logout } = useAuth();
 
   if (pathname === '/login' || pathname.startsWith('/invite/')) return null;
 
@@ -68,22 +69,29 @@ export default function Sidebar() {
         })}
       </nav>
 
-      <div className="p-6">
-        <div className="bg-white/5 rounded-3xl p-5 border border-white/5">
-          <div className="flex items-center gap-3 mb-3">
-            <Server size={14} className="text-[var(--accent)]" />
-            <span className="text-xs font-semibold text-slate-300">Node Status</span>
-          </div>
-          <div className="space-y-3">
-            <div className="flex justify-between items-center text-[10px]">
-              <span className="text-slate-500">System Load</span>
-              <span className="text-slate-300 font-mono">Normal</span>
+      <div className="p-6 space-y-2">
+        <Link
+          href="/profile"
+          className="block bg-white/5 rounded-3xl p-5 border border-white/5 hover:bg-white/[0.07] transition-colors group"
+        >
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-8 h-8 rounded-full bg-[var(--accent)]/20 flex items-center justify-center">
+              <User size={14} className="text-[var(--accent)]" />
             </div>
-            <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
-              <div className="h-full w-[35%] bg-[var(--accent)] rounded-full" />
+            <div>
+              <p className="text-sm font-medium text-slate-200 group-hover:text-white transition-colors">{user?.username ?? 'User'}</p>
+              <p className="text-[10px] text-slate-500 capitalize">{user?.role ?? 'unknown'}</p>
             </div>
           </div>
-        </div>
+          <span className="text-[10px] text-slate-500 group-hover:text-slate-400 transition-colors">View Profile →</span>
+        </Link>
+        <button
+          onClick={() => { logout(); window.location.href = '/login'; }}
+          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-colors text-xs font-medium"
+        >
+          <LogOut size={14} />
+          Sign Out
+        </button>
       </div>
     </aside>
   );

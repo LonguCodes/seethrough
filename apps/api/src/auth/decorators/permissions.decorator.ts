@@ -1,6 +1,7 @@
 import { SetMetadata } from '@nestjs/common';
-import type { Permission } from '../permissions.js';
+
+import { Permissions } from '@repo/core';
 
 export const PERMISSIONS_KEY = 'permissions';
-export const RequirePermissions = (...permissions: Permission[]) =>
+export const RequirePermissions = (...permissions: Permissions[]) =>
   SetMetadata(PERMISSIONS_KEY, permissions);
