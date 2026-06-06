@@ -31,7 +31,6 @@ import { MetricsModule } from "./metrics/metrics.module.js";
         migrations: ["apps/api/dist/migrations/*.js"],
         migrationsTableName: "migrations",
         namingStrategy: new SnakeNamingStrategy(),
-        logging: "all"
       }),
     }),
     MetricsModule,

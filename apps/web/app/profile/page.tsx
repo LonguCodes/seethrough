@@ -100,6 +100,7 @@ function TotpEnrollPanel({ secret, verifyCode, onVerifyCodeChange, onVerify, isP
 export default function ProfilePage() {
   const queryClient = useQueryClient();
   const [verifyCode, setVerifyCode] = useState<Record<string, string>>({});
+  const [pendingTotpSecrets, setPendingTotpSecrets] = useState<Record<string, string>>({});
   const [passkeyCreating, setPasskeyCreating] = useState(false);
 
   const { data: enrollments = [], isLoading, error } = useQuery({
@@ -126,6 +127,7 @@ export default function ProfilePage() {
     onSuccess: (_data, vars) => {
       queryClient.invalidateQueries({ queryKey: ['mfa-enrollments'] });
       setVerifyCode(prev => { const n = { ...prev }; delete n[vars.enrollmentId]; return n; });
+      setPendingTotpSecrets(prev => { const n = { ...prev }; delete n[vars.enrollmentId]; return n; });
     },
     onError: () => { alert('Verification failed.'); },
   });
@@ -139,8 +141,10 @@ export default function ProfilePage() {
   });
 
   const handleTotpEnroll = (mfaConfigId: string) => {
-    // TOTP enrollment still uses the old flow
-    api.post(`mfa/enroll/${mfaConfigId}`).json().then(() => {
+    api.post(`mfa/enroll/${mfaConfigId}`).json().then((enrollment: any) => {
+      if (enrollment?.id && enrollment?.secret) {
+        setPendingTotpSecrets(prev => ({ ...prev, [enrollment.id]: enrollment.secret }));
+      }
       queryClient.invalidateQueries({ queryKey: ['mfa-enrollments'] });
     }).catch(() => {
       alert('Failed to enroll. You may already be enrolled in this method.');
@@ -280,7 +284,9 @@ export default function ProfilePage() {
           </div>
         ) : (
           <div className="space-y-3">
-            {enrollments.map(e => (
+            {enrollments.map(e => {
+              const totpSecret = e.secret || pendingTotpSecrets[e.id] || '';
+              return (
               <div key={e.id} className="glass rounded-2xl p-5 border border-white/5">
                 <div className="flex items-center justify-between">
                   <div>
@@ -300,9 +306,9 @@ export default function ProfilePage() {
                   </div>
                 </div>
 
-                {!e.verified && e.type === 'totp' && e.secret && (
+                {!e.verified && e.type === 'totp' && totpSecret && (
                   <TotpEnrollPanel
-                    secret={e.secret}
+                    secret={totpSecret}
                     verifyCode={verifyCode[e.id] || ''}
                     onVerifyCodeChange={code => setVerifyCode(prev => ({ ...prev, [e.id]: code }))}
                     onVerify={() => handleVerify(e.id)}
@@ -322,7 +328,8 @@ export default function ProfilePage() {
                   </div>
                 )}
               </div>
-            ))}
+            );
+            })}
           </div>
         )}
       </section>

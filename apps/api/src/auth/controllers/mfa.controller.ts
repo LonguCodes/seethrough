@@ -1,10 +1,10 @@
-import { Controller, Post, Get, Delete, Body, Param, Request, UseGuards } from '@nestjs/common';
-import type { Request as ExpressRequest } from 'express';
+import { Body, Controller, Delete, Get, Param, Post, Request, UseGuards } from "@nestjs/common";
+import type { Request as ExpressRequest } from "express";
 
-import { Public } from '../decorators/public.decorator.js';
-import  { VerifyMfaDto } from '../dto/verify-mfa.dto.js';
-import type { AuthenticatedUser } from '../guards/jwt-auth.guard.js';
-import { JwtAuthGuard } from '../guards/jwt-auth.guard.js';
+import { Public } from "../decorators/public.decorator.js";
+import { VerifyMfaDto } from "../dto/verify-mfa.dto.js";
+import type { AuthenticatedUser } from "../guards/jwt-auth.guard.js";
+import { JwtAuthGuard } from "../guards/jwt-auth.guard.js";
 import { MfaService } from "../services";
 
 type AuthenticatedRequest = ExpressRequest & { user: AuthenticatedUser };
@@ -55,8 +55,12 @@ export class MfaController {
   @UseGuards(JwtAuthGuard)
   @Post('passkey/register-options')
   async passkeyRegisterOptions(@Body('mfaConfigId') mfaConfigId: string, @Request() req: AuthenticatedRequest) {
-    const options = await this.mfaService.getPasskeyRegistrationOptions(req.user.id, req.user.username, mfaConfigId);
-    return options;
+
+    return await this.mfaService.getPasskeyRegistrationOptions(
+      req.user.id,
+      req.user.username,
+      mfaConfigId,
+    );
   }
 
   @UseGuards(JwtAuthGuard)

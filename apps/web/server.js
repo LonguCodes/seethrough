@@ -12,7 +12,7 @@ const proxy = httpProxy.createProxyServer({
 });
 
 app.prepare().then(() => {
-  const port = process.env.PORT;
+  const port = process.env.PORT ?? 4200;
 
   const server = createServer((req, res) => {
     if (req.url.startsWith('/socket.io/')) {
