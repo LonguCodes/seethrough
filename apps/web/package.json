@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
+    "@repo/core": "*",
     "@repo/ui": "*",
     "@tailwindcss/postcss": "^4.2.4",
     "@tanstack/react-query": "^5.101.0",

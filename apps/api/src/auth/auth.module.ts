@@ -1,6 +1,7 @@
 import { ConfigToken } from "@longucodes/config";
 import { Module } from "@nestjs/common";
 import { JwtModule } from "@nestjs/jwt";
+import { TypeOrmModule } from "@nestjs/typeorm";
 
 import {
   AuthController,
@@ -10,6 +11,7 @@ import {
   MfaConfigsController,
   MfaController,
 } from "./controllers";
+import { Invitation } from "./entities/invitation.entity";
 import { JwtAuthGuard } from "./guards/jwt-auth.guard.js";
 import { PermissionsGuard } from "./guards/permissions.guard.js";
 import {
@@ -19,8 +21,20 @@ import {
   MfaService,
   TokenService,
 } from "./services";
-import { PasskeyStrategy , TotpStrategy , OidcStrategy , PasswordStrategy , SamlStrategy } from "./strategies";
+import {
+  PasskeyStrategy,
+  TotpStrategy,
+  OidcStrategy,
+  PasswordStrategy,
+  SamlStrategy,
+} from "./strategies";
 import type { AppConfig } from "../config/app.config.js";
+import { AuthMethod } from "./entities/auth-method.entity";
+import { MfaConfig } from "./entities/mfa-config.entity";
+import { Role } from "./entities/role.entity";
+import { Session } from "./entities/session.entity";
+import { UserMfa } from "./entities/user-mfa.entity";
+import { User } from "./entities/user.entity";
 
 @Module({
   imports: [
@@ -31,6 +45,7 @@ import type { AppConfig } from "../config/app.config.js";
         signOptions: { expiresIn: "30m" },
       }),
     }),
+    TypeOrmModule.forFeature([AuthMethod, Invitation, MfaConfig, Role, Session, User, UserMfa]),
   ],
   providers: [
     JwtAuthGuard,

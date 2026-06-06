@@ -41,7 +41,7 @@ interface AlertIntegration {
 import AlertTriggerForm from './AlertTriggerForm';
 import IntegrationForm from './IntegrationForm';
 import api from '../../lib/api';
-import { hasPermission, PERMISSIONS } from '../../lib/permissions';
+import { hasPermission, Permissions } from '@repo/core';
 import { useAuth } from '../../lib/use-auth';
 import { useRequirePermission } from '../../lib/use-require-permission';
 import AccessDenied from '../components/AccessDenied';
@@ -50,10 +50,10 @@ import PageLoading from '../components/PageLoading';
 type Tab = 'triggers' | 'integrations';
 
 export default function AlertsConfiguration() {
-  const { authorized, loading: authLoading } = useRequirePermission(PERMISSIONS.ALERTS_VIEW);
+  const { authorized, loading: authLoading } = useRequirePermission(Permissions.ALERTS_VIEW);
   const { user } = useAuth();
-  const canConfigureAlerts = hasPermission(user, PERMISSIONS.ALERTS_CONFIGURE);
-  const canManageIntegrations = hasPermission(user, PERMISSIONS.INTEGRATIONS_MANAGE);
+  const canConfigureAlerts = hasPermission(user, Permissions.ALERTS_CONFIGURE);
+  const canManageIntegrations = hasPermission(user, Permissions.INTEGRATIONS_MANAGE);
   const [activeTab, setActiveTab] = useState<Tab>('triggers');
 
   const [targets, setTargets] = useState<any[]>([]);

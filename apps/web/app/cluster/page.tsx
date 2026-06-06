@@ -6,7 +6,7 @@ import { Layers, Globe, Server, Box } from 'lucide-react';
 import Link from 'next/link';
 
 import api from '../../lib/api';
-import { PERMISSIONS } from '../../lib/permissions';
+import { Permissions } from '@repo/core';
 import { useRequirePermission } from '../../lib/use-require-permission';
 import AccessDenied from '../components/AccessDenied';
 import PageLoading from '../components/PageLoading';
@@ -30,7 +30,7 @@ interface ClusterInfo {
 
 
 export default function ClusterPage() {
-  const { authorized, loading: authLoading } = useRequirePermission(PERMISSIONS.CLUSTER_VIEW);
+  const { authorized, loading: authLoading } = useRequirePermission(Permissions.CLUSTER_VIEW);
   const [clusterInfo, setClusterInfo] = useState<ClusterInfo | null>(null);
   const [loading, setLoading] = useState(true);
 

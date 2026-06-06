@@ -1,10 +1,10 @@
 import * as fileSystem from "fs/promises";
 
 import { ConfigToken } from "@longucodes/config";
-import type { HttpService } from "@nestjs/axios";
+import { HttpService } from "@nestjs/axios";
 import type { OnModuleInit } from "@nestjs/common";
 import { Injectable, Inject, Logger } from "@nestjs/common";
-import type { JwtService } from "@nestjs/jwt";
+import { JwtService } from "@nestjs/jwt";
 import fastFolderSize from "fast-folder-size/sync.js";
 import { interval, firstValueFrom } from "rxjs";
 import * as si from "systeminformation";

@@ -5,7 +5,7 @@ import { createContext, useContext, useState, useEffect, useCallback, type React
 import {jwtDecode} from "jwt-decode";
 
 import { getAccessToken, clearTokens } from './auth';
-import type { AuthUser } from './permissions';
+import type { AuthUser } from '@repo/core';
 
 function parseUserFromToken(token: string | undefined): AuthUser | null {
   if (!token) return null;

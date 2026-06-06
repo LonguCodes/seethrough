@@ -46,7 +46,7 @@ export class MfaController {
   @UseGuards(JwtAuthGuard)
   @Delete('enrollments/:enrollmentId')
   async removeEnrollment(@Param('enrollmentId') enrollmentId: string, @Request() req: AuthenticatedRequest) {
-    await this.mfaService.removeEnrollment(req.user.sub, enrollmentId);
+    await this.mfaService.removeEnrollment(req.user.id, enrollmentId);
     return { success: true };
   }
 

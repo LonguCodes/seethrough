@@ -9,7 +9,7 @@ import type { InviteUserFormValues, InvitationResult } from './InviteUserForm';
 import RoleForm from './RoleForm';
 import type { RoleFormValues } from './RoleForm';
 import api from '../../lib/api';
-import { hasPermission, PERMISSIONS, ALL_PERMISSIONS, PERMISSION_LABELS, type Permission } from '../../lib/permissions';
+import { hasPermission, Permissions, ALL_PERMISSIONS, PERMISSION_LABELS } from '@repo/core';
 import { useAuth } from '../../lib/use-auth';
 import { useRequirePermission } from '../../lib/use-require-permission';
 import AccessDenied from '../components/AccessDenied';
@@ -37,9 +37,9 @@ const EMPTY_ROLE_FORM: RoleFormValues = {
 };
 
 export default function UsersPage() {
-  const { authorized, loading: authLoading } = useRequirePermission(PERMISSIONS.USERS_VIEW);
+  const { authorized, loading: authLoading } = useRequirePermission(Permissions.USERS_VIEW);
   const { user } = useAuth();
-  const canManageUsers = hasPermission(user, PERMISSIONS.USERS_MANAGE);
+  const canManageUsers = hasPermission(user, Permissions.USERS_MANAGE);
   const [activeTab, setActiveTab] = useState<Tab>('users');
 
   const [users, setUsers] = useState<User[]>([]);
@@ -431,7 +431,7 @@ export default function UsersPage() {
                               }`}
                             >
                               <div className={`w-1.5 h-1.5 rounded-full ${r.permissions.includes(perm) ? 'bg-[var(--success)]' : 'bg-slate-600'}`} />
-                              {PERMISSION_LABELS[perm as Permission] ?? perm}
+                              {PERMISSION_LABELS[perm as Permissions] ?? perm}
                             </div>
                           ))}
                         </div>

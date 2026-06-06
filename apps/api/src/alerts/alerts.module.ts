@@ -1,5 +1,10 @@
 import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
 
+import { Alert } from './alert.entity.js';
+import { AlertTrigger } from './alert-trigger.entity.js';
+import { AlertIntegration } from './integrations/integration.entity.js';
+import { TriggerIntegration } from './integrations/trigger-integration.entity.js';
 import { AlertProcessorService } from './alert-processor.service.js';
 import { AlertsController } from './alerts.controller.js';
 import { AlertsService } from './alerts.service.js';
@@ -19,6 +24,7 @@ import { TargetRegistry } from './targets/target.registry.js';
   imports: [
     ClusterModule,
     MetricsModule,
+    TypeOrmModule.forFeature([Alert, AlertTrigger, AlertIntegration, TriggerIntegration]),
   ],
   providers: [
     AlertsService,

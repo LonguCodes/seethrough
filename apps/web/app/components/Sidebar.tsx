@@ -4,7 +4,7 @@ import { LayoutDashboard, Layers, Settings, Activity, Box, Cpu, HardDrive, Users
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
-import { hasPermission, PERMISSIONS, NAV_PERMISSION_MAP } from '../../lib/permissions';
+import { hasPermission, Permissions, NAV_PERMISSION_MAP } from '@repo/core';
 import { useAuth } from '../../lib/use-auth';
 
 const ALL_MENU_ITEMS = [

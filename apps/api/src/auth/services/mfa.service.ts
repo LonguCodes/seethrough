@@ -10,8 +10,7 @@ import { MfaConfig } from '../entities/mfa-config.entity.js';
 import { UserMfa } from '../entities/user-mfa.entity.js';
 import { User } from '../entities/user.entity.js';
 import type { MfaStrategy } from "../strategies";
-import { PasskeyStrategy } from "../strategies";
-import { TotpStrategy } from "../strategies";
+import { PasskeyStrategy , TotpStrategy } from "../strategies";
 
 const ENCRYPTION_ALGORITHM = 'aes-256-cbc';
 const IV_LENGTH = 16;

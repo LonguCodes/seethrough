@@ -5,8 +5,9 @@ import { useEffect, useState, use } from "react";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
+import { Permissions } from "@repo/core";
+
 import api from "../../../../lib/api";
-import { PERMISSIONS } from "../../../../lib/permissions";
 import { useRequirePermission } from "../../../../lib/use-require-permission";
 import AccessDenied from "../../../components/AccessDenied";
 import PageLoading from "../../../components/PageLoading";
@@ -26,7 +27,7 @@ export default function PodPage({
 }: {
   params: Promise<{ namespace: string; name: string }>;
 }) {
-  const { authorized, loading: authLoading } = useRequirePermission(PERMISSIONS.PODS_VIEW);
+  const { authorized, loading: authLoading } = useRequirePermission(Permissions.CLUSTER_VIEW);
   const { namespace, name } = use(params);
   const [pod, setPod] = useState<Pod | null>(null);
   const [loading, setLoading] = useState(true);

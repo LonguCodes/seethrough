@@ -6,4 +6,9 @@ export default [
   {
     ignores: ["esbuild.config.js"],
   },
+  {
+    rules: {
+      "@typescript-eslint/consistent-type-imports": "off",
+    },
+  },
 ];

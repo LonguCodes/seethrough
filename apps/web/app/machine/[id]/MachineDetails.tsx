@@ -1,16 +1,9 @@
-'use client';
+"use client";
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from "react";
 
-import {
-  ArrowLeft,
-  Cpu,
-  Database,
-  HardDrive,
-  Server,
-  Activity,
-} from 'lucide-react';
-import Link from 'next/link';
+import { ArrowLeft, Cpu, Database, HardDrive, Server, Activity } from "lucide-react";
+import Link from "next/link";
 import {
   LineChart,
   Line,
@@ -18,15 +11,16 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  ResponsiveContainer
-} from 'recharts';
-import { io } from 'socket.io-client';
+  ResponsiveContainer,
+} from "recharts";
+import { io } from "socket.io-client";
 
-import api from '../../../lib/api';
-import { PERMISSIONS } from '../../../lib/permissions';
-import { useRequirePermission } from '../../../lib/use-require-permission';
-import AccessDenied from '../../components/AccessDenied';
-import PageLoading from '../../components/PageLoading';
+import { Permissions } from "@repo/core";
+
+import api from "../../../lib/api";
+import { useRequirePermission } from "../../../lib/use-require-permission";
+import AccessDenied from "../../components/AccessDenied";
+import PageLoading from "../../components/PageLoading";
 
 interface Metric {
   machineId: string;
@@ -41,9 +35,8 @@ interface MachineDetailsProps {
   apiUrl: string;
 }
 
-
 export default function MachineDetails({ id, apiUrl }: MachineDetailsProps) {
-  const { authorized, loading: authLoading } = useRequirePermission(PERMISSIONS.CLUSTER_VIEW);
+  const { authorized, loading: authLoading } = useRequirePermission(Permissions.CLUSTER_VIEW);
   const [history, setHistory] = useState<Metric[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState(Date.now());
@@ -57,7 +50,7 @@ export default function MachineDetails({ id, apiUrl }: MachineDetailsProps) {
       }
       setLoading(false);
     } catch (error) {
-      console.error('Failed to fetch history:', error);
+      console.error("Failed to fetch history:", error);
       setLoading(false);
     }
   };
@@ -67,7 +60,7 @@ export default function MachineDetails({ id, apiUrl }: MachineDetailsProps) {
 
     const socket = io();
 
-    socket.on('metrics-update', (updatedMetric: Metric) => {
+    socket.on("metrics-update", (updatedMetric: Metric) => {
       if (updatedMetric.machineId === id) {
         setHistory((prev) => [...prev.slice(-999), updatedMetric]);
       }
@@ -90,9 +83,9 @@ export default function MachineDetails({ id, apiUrl }: MachineDetailsProps) {
   }, [currentTime]);
 
   const chartData = useMemo(() => {
-    return history.map(m => ({
+    return history.map((m) => ({
       ...m,
-      timestamp: new Date(m.timestamp).getTime()
+      timestamp: new Date(m.timestamp).getTime(),
     }));
   }, [history]);
 
@@ -101,7 +94,10 @@ export default function MachineDetails({ id, apiUrl }: MachineDetailsProps) {
   if (!authorized) {
     return (
       <>
-        <Link href="/" className="flex items-center gap-2 text-slate-400 no-underline text-sm hover:text-[var(--accent)] transition-colors mb-6 p-8 max-w-7xl mx-auto">
+        <Link
+          href="/"
+          className="flex items-center gap-2 text-slate-400 no-underline text-sm hover:text-[var(--accent)] transition-colors mb-6 p-8 max-w-7xl mx-auto"
+        >
           <ArrowLeft size={18} />
           Back to Dashboard
         </Link>
@@ -110,11 +106,19 @@ export default function MachineDetails({ id, apiUrl }: MachineDetailsProps) {
     );
   }
 
-  if (loading) return <div className="p-8 max-w-7xl mx-auto min-h-screen text-[var(--foreground)]">Loading history for {id}...</div>;
+  if (loading)
+    return (
+      <div className="p-8 max-w-7xl mx-auto min-h-screen text-[var(--foreground)]">
+        Loading history for {id}...
+      </div>
+    );
 
   return (
     <div className="p-8 max-w-7xl mx-auto min-h-screen">
-      <Link href="/" className="flex items-center gap-2 text-slate-400 no-underline text-sm hover:text-[var(--accent)] transition-colors mb-6">
+      <Link
+        href="/"
+        className="flex items-center gap-2 text-slate-400 no-underline text-sm hover:text-[var(--accent)] transition-colors mb-6"
+      >
         <ArrowLeft size={18} />
         Back to Dashboard
       </Link>
@@ -194,7 +198,13 @@ function ChartSection({ title, icon, data, dataKey, color, domain }: ChartSectio
               fontSize={10}
               tickLine={false}
               axisLine={false}
-              tickFormatter={(time) => new Date(time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+              tickFormatter={(time) =>
+                new Date(time).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  second: "2-digit",
+                })
+              }
               allowDataOverflow
               tickCount={6}
             />
@@ -209,10 +219,10 @@ function ChartSection({ title, icon, data, dataKey, color, domain }: ChartSectio
               allowDataOverflow
             />
             <Tooltip
-              contentStyle={{ background: '#1e293b', border: 'none', borderRadius: '8px' }}
+              contentStyle={{ background: "#1e293b", border: "none", borderRadius: "8px" }}
               itemStyle={{ color }}
               labelFormatter={(label) => new Date(label).toLocaleString()}
-              formatter={(value: any) => [`${Number(value).toFixed(2)}%`, title.split(' (')[0]]}
+              formatter={(value: any) => [`${Number(value).toFixed(2)}%`, title.split(" (")[0]]}
               isAnimationActive={false}
               useTranslate3d
             />

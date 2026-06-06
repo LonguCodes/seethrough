@@ -10,6 +10,7 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "@repo/core": "*",
     "@longucodes/config": "^1.1.17",
     "@nestjs/common": "^11.1.6",
     "@nestjs/core": "11.1.18",
@@ -38,7 +39,8 @@
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
     "socket.io": "^4.8.3",
-    "typeorm": "^0.3.27"
+    "typeorm": "^0.3.27",
+    "typeorm-naming-strategies": "^4.1.0"
   },
   "devDependencies": {
     "@esbuild-plugins/tsconfig-paths": "^0.1.2",

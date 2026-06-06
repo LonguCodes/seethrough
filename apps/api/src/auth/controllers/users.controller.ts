@@ -18,7 +18,7 @@ import  { CreateUserDto } from '../dto/create-user.dto.js';
 import  { UpdateUserDto } from '../dto/update-user.dto.js';
 import type { AuthenticatedUser } from '../guards/jwt-auth.guard.js';
 import { PermissionsGuard } from '../guards/permissions.guard.js';
-import { PERMISSIONS } from '../permissions.js';
+import { Permissions } from '@repo/core';
 import { AuthService } from "../services";
 
 type AuthenticatedRequest = ExpressRequest & { user: AuthenticatedUser };
@@ -29,14 +29,14 @@ export class UsersController {
 
   @Get()
   @UseGuards(PermissionsGuard)
-  @RequirePermissions(PERMISSIONS.USERS_VIEW)
+  @RequirePermissions(Permissions.USERS_VIEW)
   async findAll() {
     return this.authService.findAllUsers();
   }
 
   @Post()
   @UseGuards(PermissionsGuard)
-  @RequirePermissions(PERMISSIONS.USERS_MANAGE)
+  @RequirePermissions(Permissions.USERS_MANAGE)
   async create(@Body() createUserDto: CreateUserDto) {
     return this.authService.createInvitation(
       createUserDto.username,
@@ -46,14 +46,14 @@ export class UsersController {
 
   @Patch(':id')
   @UseGuards(PermissionsGuard)
-  @RequirePermissions(PERMISSIONS.USERS_MANAGE)
+  @RequirePermissions(Permissions.USERS_MANAGE)
   async updateRole(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
     return this.authService.updateUserRole(id, updateUserDto.role!);
   }
 
   @Delete(':id')
   @UseGuards(PermissionsGuard)
-  @RequirePermissions(PERMISSIONS.USERS_MANAGE)
+  @RequirePermissions(Permissions.USERS_MANAGE)
   async remove(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
     await this.authService.deleteUser(id, req.user.id);
     return { message: 'User deleted' };

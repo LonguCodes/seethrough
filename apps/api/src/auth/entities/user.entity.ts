@@ -6,15 +6,15 @@ import {
   OneToMany,
   BaseEntity,
   type Relation,
-} from 'typeorm';
+} from "typeorm";
 
-import { Role } from './role.entity.js';
-import { Session } from './session.entity.js';
-import { UserMfa } from './user-mfa.entity.js';
+import { Role } from "./role.entity.js";
+import { Session } from "./session.entity.js";
+import { UserMfa } from "./user-mfa.entity.js";
 
-@Entity('users')
+@Entity("users")
 export class User extends BaseEntity {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryGeneratedColumn("uuid")
   id: string;
 
   @Column({ unique: true })
@@ -23,7 +23,10 @@ export class User extends BaseEntity {
   @Column({ select: false })
   password: string;
 
-  @ManyToOne(() => Role, { eager: true, onDelete: 'RESTRICT' })
+  @Column({ type: "uuid" })
+  roleId: string;
+
+  @ManyToOne(() => Role, { eager: true, onDelete: "RESTRICT" })
   role: Relation<Role>;
 
   @OneToMany(() => Session, (session) => session.user)

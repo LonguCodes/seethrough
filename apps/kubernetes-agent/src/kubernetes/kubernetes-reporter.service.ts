@@ -5,7 +5,6 @@ import type { OnModuleInit } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { interval, firstValueFrom } from "rxjs";
 
-// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { KubernetesService } from "./kubernetes.service.js";
 import type { AppConfig } from "../config/app.config.js";
 

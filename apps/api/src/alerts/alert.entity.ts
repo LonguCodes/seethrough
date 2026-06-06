@@ -27,7 +27,6 @@ export class Alert extends BaseEntity {
   details: unknown;
 
   @ManyToOne(() => AlertTrigger, { nullable: true, onDelete: 'SET NULL' })
-  @JoinColumn({ name: 'triggerId' })
   trigger: Relation<AlertTrigger>;
 
   @Column({ nullable: true })

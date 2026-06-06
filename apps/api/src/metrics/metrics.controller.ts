@@ -46,10 +46,6 @@ export class MetricsController {
 
   @Post()
   async createMetric(@Body() dto: CreateMetricDto, @Request() req: AuthenticatedMachineRequest) {
-    if (dto.pvcUsage && dto.pvcUsage.length > 0) {
-      console.log(`Received ${dto.pvcUsage.length} PVC usage entries from ${req.user.machineId}`);
-    }
-
     const metric = await this.metricsService.saveMetric(
       req.user.machineId,
       dto.cpuUsage,
@@ -57,8 +53,6 @@ export class MetricsController {
       dto.diskUsage,
       dto.pvcUsage || [],
     );
-
-    console.log(`Saved metric for ${req.user.machineId}, pvcUsage count: ${metric.pvcUsage?.length || 0}`);
 
     this.metricsGateway.broadcastMetric(metric);
 

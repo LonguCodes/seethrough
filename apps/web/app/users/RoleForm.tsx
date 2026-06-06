@@ -8,7 +8,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
 import api from '../../lib/api';
-import { ALL_PERMISSIONS, PERMISSION_LABELS, type Permission } from '../../lib/permissions';
+import { ALL_PERMISSIONS, PERMISSION_LABELS, Permissions } from '@repo/core';
 
 const schema = z.object({
   name: z.string().min(1, 'Role name is required'),
@@ -138,7 +138,7 @@ export default function RoleForm({ editingRoleId, defaultValues, onSuccess, onCa
                   disabled={superadmin}
                 />
                 <span className="text-xs text-slate-300 select-none">
-                  {PERMISSION_LABELS[perm as Permission] ?? perm}
+                  {PERMISSION_LABELS[perm as Permissions] ?? perm}
                 </span>
               </label>
             ))}

@@ -1,3 +1,5 @@
+import crypto from "crypto";
+
 import { Injectable } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 
@@ -11,33 +13,35 @@ export class TokenService {
   constructor(private readonly jwtService: JwtService) {}
 
   async generateTokens(user: User) {
-    const role = await Role.createQueryBuilder("role")
-      .where("role.name = :name", { name: user.role?.name })
-      .getOne();
+
+    console.log(user);
+    const role = await Role.createQueryBuilder("role").where({ id: user.roleId }).getOne();
+
+    console.log(role);
     const permissions: string[] = role?.superadmin
       ? [...ALL_PERMISSIONS]
       : (role?.permissions ?? []);
 
-    const payload = {
+    const session = Session.create({
+      token: crypto.randomBytes(32).toString("hex"),
+      user,
+      expiresAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+    });
+
+    await session.save();
+
+    const accessTokenPayload = {
       sub: user.id,
       username: user.username,
       role: user.role?.name,
       permissions,
     };
 
-    const accessToken = this.jwtService.sign(payload, { expiresIn: "30m" });
-    const refreshTokenValue = this.jwtService.sign(payload, { expiresIn: "14d" });
-
-    const session = Session.create({
-      token: refreshTokenValue,
-      user,
-      expiresAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
-    });
-    await session.save();
+    const accessToken = this.jwtService.sign(accessTokenPayload, { expiresIn: "30m" });
 
     return {
       accessToken,
-      refreshToken: refreshTokenValue,
+      refreshToken: session.token,
     };
   }
 }
